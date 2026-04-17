@@ -30,6 +30,11 @@ fn main() {
             commands::connection::connect_connection,
             commands::connection::disconnect_connection,
             commands::script::run_script,
+            commands::saved_script::list_scripts,
+            commands::saved_script::create_script,
+            commands::saved_script::update_script,
+            commands::saved_script::delete_script,
+            commands::saved_script::touch_script,
             runner::executor::check_node_runner,
             runner::executor::install_node_runner,
         ])

@@ -4,6 +4,7 @@ import { SidePanel } from './components/layout/SidePanel';
 import { StatusBar } from './components/layout/StatusBar';
 import { ConnectionPanel } from './components/connections/ConnectionPanel';
 import { EditorArea } from './components/editor/EditorArea';
+import { SavedScriptsPanel } from './components/saved-scripts/SavedScriptsPanel';
 import { useConnectionsStore } from './store/connections';
 import { useScriptEvents } from './hooks/useScriptEvents';
 
@@ -19,8 +20,12 @@ export default function App() {
         <IconRail active={panel} onChange={setPanel} />
         <SidePanel active={panel}>
           {panel === 'connections' && <ConnectionPanel />}
-          {panel !== 'connections' && (
-            <div style={{ padding: 12, color: 'var(--fg-dim)' }}>Coming soon</div>
+          {panel === 'saved' && <SavedScriptsPanel />}
+          {panel === 'collections' && (
+            <div style={{ padding: 12, color: 'var(--fg-dim)' }}>Connect to a server to view collections.</div>
+          )}
+          {panel === 'settings' && (
+            <div style={{ padding: 12, color: 'var(--fg-dim)' }}>Settings — coming soon.</div>
           )}
         </SidePanel>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
