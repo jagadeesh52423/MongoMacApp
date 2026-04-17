@@ -4,6 +4,7 @@ mod commands;
 mod db;
 mod keychain;
 mod mongo;
+mod runner;
 mod state;
 
 use state::AppState;
@@ -27,6 +28,8 @@ fn main() {
             commands::connection::test_connection,
             commands::connection::connect_connection,
             commands::connection::disconnect_connection,
+            runner::executor::check_node_runner,
+            runner::executor::install_node_runner,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
