@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { browseCollection } from '../../ipc';
+import { useCallback, useEffect, useState } from 'react';
+import { browseCollection, updateDocument, deleteDocument } from '../../ipc';
 import type { BrowsePage } from '../../types';
+import { TableView } from '../results/TableView';
 
 interface Props {
   connectionId: string;
@@ -15,12 +16,42 @@ export function BrowseTab({ connectionId, database, collection }: Props) {
   const [data, setData] = useState<BrowsePage | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setErr(null);
     browseCollection(connectionId, database, collection, page, PAGE_SIZE)
       .then(setData)
       .catch((e) => setErr((e as Error).message ?? String(e)));
   }, [connectionId, database, collection, page]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function handleEditCell(rowIdx: number, key: string, newValue: string) {
+    if (!data) return;
+    const doc = data.docs[rowIdx] as Record<string, unknown>;
+    const id = String(doc._id);
+    const updated = { ...doc, [key]: tryParse(newValue) };
+    try {
+      await updateDocument(connectionId, database, collection, id, JSON.stringify(updated));
+      load();
+    } catch (e) {
+      setErr((e as Error).message ?? String(e));
+    }
+  }
+
+  async function handleDelete(rowIdx: number) {
+    if (!data) return;
+    const doc = data.docs[rowIdx] as Record<string, unknown>;
+    const id = String(doc._id);
+    if (!confirm(`Delete document ${id}?`)) return;
+    try {
+      await deleteDocument(connectionId, database, collection, id);
+      load();
+    } catch (e) {
+      setErr((e as Error).message ?? String(e));
+    }
+  }
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -50,14 +81,18 @@ export function BrowseTab({ connectionId, database, collection }: Props) {
           </button>
         </span>
       </div>
-      <div style={{ flex: 1, overflow: 'auto', fontFamily: 'var(--font-mono)', padding: 10 }}>
-        {err && <div style={{ color: 'var(--accent-red)' }}>{err}</div>}
-        {data?.docs.map((d, i) => (
-          <pre key={i} style={{ margin: '0 0 10px', whiteSpace: 'pre-wrap' }}>
-            {JSON.stringify(d, null, 2)}
-          </pre>
-        ))}
-      </div>
+      {err && <div style={{ color: 'var(--accent-red)', padding: 8 }}>{err}</div>}
+      {data && (
+        <TableView docs={data.docs} onEditCell={handleEditCell} onDelete={handleDelete} />
+      )}
     </div>
   );
+}
+
+function tryParse(v: string): unknown {
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  if (v === 'null') return null;
+  if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
+  return v;
 }
