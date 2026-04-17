@@ -9,7 +9,9 @@ import {
   disconnectConnection,
 } from '../../ipc';
 import { useConnectionsStore } from '../../store/connections';
+import { useEditorStore } from '../../store/editor';
 import { ConnectionDialog } from './ConnectionDialog';
+import { ConnectionTree } from './ConnectionTree';
 import type { Connection, ConnectionInput } from '../../types';
 
 export function ConnectionPanel() {
@@ -28,6 +30,20 @@ export function ConnectionPanel() {
   const [editing, setEditing] = useState<Connection | null>(null);
   const [creating, setCreating] = useState(false);
   const [status, setStatus] = useState<Record<string, string>>({});
+  const openTab = useEditorStore((s) => s.openTab);
+
+  function openBrowseTab(db: string, col: string, cId: string) {
+    openTab({
+      id: `browse:${cId}:${db}:${col}`,
+      title: col,
+      content: '',
+      isDirty: false,
+      type: 'browse',
+      connectionId: cId,
+      database: db,
+      collection: col,
+    });
+  }
 
   useEffect(() => {
     listConnections().then(setConnections).catch((e) => console.error(e));
@@ -108,6 +124,12 @@ export function ConnectionPanel() {
               </div>
               {status[c.id] && (
                 <div style={{ fontSize: 11, color: 'var(--fg-dim)' }}>{status[c.id]}</div>
+              )}
+              {connected && (
+                <ConnectionTree
+                  connectionId={c.id}
+                  onOpenCollection={(db, col) => openBrowseTab(db, col, c.id)}
+                />
               )}
             </li>
           );
