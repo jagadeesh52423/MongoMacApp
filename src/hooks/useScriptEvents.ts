@@ -1,0 +1,30 @@
+import { useEffect } from 'react';
+import { listen } from '@tauri-apps/api/event';
+import { useResultsStore } from '../store/results';
+import type { ScriptEvent } from '../types';
+
+export function useScriptEvents() {
+  const { appendGroup, setError, finishRun } = useResultsStore();
+
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    listen<ScriptEvent>('script-event', (e) => {
+      const p = e.payload;
+      if (p.kind === 'group' && p.groupIndex !== undefined && p.docs !== undefined) {
+        appendGroup(p.tabId, {
+          groupIndex: p.groupIndex,
+          docs: Array.isArray(p.docs) ? p.docs : [p.docs],
+        });
+      } else if (p.kind === 'error' && p.error) {
+        setError(p.tabId, p.error);
+      } else if (p.kind === 'done') {
+        finishRun(p.tabId, p.executionMs ?? 0);
+      }
+    }).then((fn) => {
+      unsub = fn;
+    });
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [appendGroup, setError, finishRun]);
+}

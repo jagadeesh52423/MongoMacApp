@@ -28,6 +28,7 @@ fn main() {
             commands::connection::test_connection,
             commands::connection::connect_connection,
             commands::connection::disconnect_connection,
+            commands::script::run_script,
             runner::executor::check_node_runner,
             runner::executor::install_node_runner,
         ])

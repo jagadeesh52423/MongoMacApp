@@ -5,8 +5,10 @@ import { StatusBar } from './components/layout/StatusBar';
 import { ConnectionPanel } from './components/connections/ConnectionPanel';
 import { EditorArea } from './components/editor/EditorArea';
 import { useConnectionsStore } from './store/connections';
+import { useScriptEvents } from './hooks/useScriptEvents';
 
 export default function App() {
+  useScriptEvents();
   const [panel, setPanel] = useState<PanelKey>('connections');
   const { connections, activeConnectionId, activeDatabase } = useConnectionsStore();
   const active = connections.find((c) => c.id === activeConnectionId);
