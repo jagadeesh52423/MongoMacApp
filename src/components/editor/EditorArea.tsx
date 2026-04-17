@@ -4,6 +4,7 @@ import { ScriptEditor } from './ScriptEditor';
 import { BrowseTab } from './BrowseTab';
 import { runScript } from '../../ipc';
 import { useResultsStore } from '../../store/results';
+import { ResultsPanel } from '../results/ResultsPanel';
 
 export function EditorArea() {
   const { tabs, activeTabId, setActive, closeTab, updateContent, openTab } = useEditorStore();
@@ -85,16 +86,23 @@ export function EditorArea() {
           </button>
         </div>
       </div>
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {!active && (
           <div style={{ padding: 20, color: 'var(--fg-dim)' }}>No editor tab open.</div>
         )}
         {active?.type === 'script' && (
-          <ScriptEditor
-            value={active.content}
-            onChange={(v) => updateContent(active.id, v)}
-            onRun={handleRun}
-          />
+          <>
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <ScriptEditor
+                value={active.content}
+                onChange={(v) => updateContent(active.id, v)}
+                onRun={handleRun}
+              />
+            </div>
+            <div style={{ height: 260, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+              <ResultsPanel tabId={active.id} />
+            </div>
+          </>
         )}
         {active?.type === 'browse' && active.connectionId && active.database && active.collection && (
           <BrowseTab
