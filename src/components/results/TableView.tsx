@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { InlineCell } from './InlineCell';
 
 interface Props {
   docs: unknown[];
@@ -83,13 +84,17 @@ export function TableView({ docs, onEditCell, onDelete }: Props) {
                   <td
                     key={c}
                     style={{ borderBottom: '1px solid var(--border)', padding: '4px 8px' }}
-                    onDoubleClick={() => {
-                      if (!onEditCell) return;
-                      const val = prompt(`Edit ${c}`, str);
-                      if (val !== null && val !== str) onEditCell(i, c, val);
-                    }}
                   >
-                    {str}
+                    {onEditCell ? (
+                      <InlineCell
+                        value={str}
+                        onSave={(newValue) => {
+                          if (newValue !== str) onEditCell(i, c, newValue);
+                        }}
+                      />
+                    ) : (
+                      str
+                    )}
                   </td>
                 );
               })}
