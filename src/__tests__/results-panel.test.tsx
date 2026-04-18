@@ -121,4 +121,19 @@ describe('ResultsPanel pagination', () => {
     render(<ResultsPanel tabId="t1" onPageChange={() => {}} />);
     expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
   });
+
+  it('shows "of 1" and disables Next for empty collection (total=0)', () => {
+    useResultsStore.setState({
+      byTab: {
+        t1: {
+          groups: [],
+          isRunning: false,
+          pagination: { total: 0, page: 0, pageSize: 50 },
+        },
+      },
+    });
+    render(<ResultsPanel tabId="t1" onPageChange={() => {}} />);
+    expect(screen.getByText(/of 1/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
+  });
 });

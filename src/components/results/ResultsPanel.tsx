@@ -16,7 +16,7 @@ export function ResultsPanel({ tabId, onPageChange }: Props) {
   const [view, setView] = useState<'json' | 'table'>('json');
   const pagination = res?.pagination;
   const totalPages = pagination && pagination.total >= 0
-    ? Math.ceil(pagination.total / pagination.pageSize)
+    ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize))
     : -1;
 
   // 1-indexed input synced to pagination.page
