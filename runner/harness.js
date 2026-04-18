@@ -11,6 +11,15 @@ const rawScript = fs.readFileSync(scriptPath, 'utf8');
 
 let groupIndex = 0;
 
+const PAGE = parseInt(process.env.MONGO_PAGE ?? '0', 10);
+const PAGE_SIZE = parseInt(process.env.MONGO_PAGE_SIZE ?? '50', 10);
+
+function emitPagination(total, page, pageSize) {
+  process.stdout.write(
+    JSON.stringify({ __pagination: { total, page, pageSize } }) + '\n',
+  );
+}
+
 function emitGroup(docs) {
   const arr = Array.isArray(docs) ? docs : [docs];
   const safe = JSON.parse(JSON.stringify(arr, (_k, v) => {
@@ -60,16 +69,26 @@ function transformScript(script) {
 // Wrap a Mongo cursor so users can chain modifiers (sort, limit, skip, ...)
 // and also await/then the cursor directly to materialize results. emitGroup is
 // invoked exactly once when the cursor is materialized.
-function makeCursorProxy(cursor) {
+function makeCursorProxy(cursor, countPromise) {
   const modifiers = ['sort', 'limit', 'skip', 'project', 'hint', 'maxTimeMS', 'batchSize'];
 
   let promise;
   function materialize() {
     if (!promise) {
-      promise = cursor.toArray().then((docs) => {
-        emitGroup(docs);
-        return docs;
-      });
+      if (countPromise !== undefined) {
+        // Apply pagination after all user chaining is done
+        cursor = cursor.skip(PAGE * PAGE_SIZE).limit(PAGE_SIZE);
+        promise = Promise.all([cursor.toArray(), countPromise]).then(([docs, total]) => {
+          emitGroup(docs);
+          emitPagination(total, PAGE, PAGE_SIZE);
+          return docs;
+        });
+      } else {
+        promise = cursor.toArray().then((docs) => {
+          emitGroup(docs);
+          return docs;
+        });
+      }
     }
     return promise;
   }
@@ -110,9 +129,24 @@ function makeCollectionProxy(col) {
       const val = target[prop];
       if (typeof val !== 'function') return val;
 
-      // find/aggregate return chainable cursors
-      if (prop === 'find' || prop === 'aggregate') {
-        return (...args) => makeCursorProxy(val.call(target, ...args));
+      // find/aggregate: paginated cursors
+      if (prop === 'find') {
+        return (filter = {}, options) => {
+          const rawCursor = val.call(target, filter, options);
+          const countPromise = target.countDocuments(filter).catch(() => -1);
+          return makeCursorProxy(rawCursor, countPromise);
+        };
+      }
+      if (prop === 'aggregate') {
+        return (pipeline = []) => {
+          const paginatedPipeline = [...pipeline, { $skip: PAGE * PAGE_SIZE }, { $limit: PAGE_SIZE }];
+          const rawCursor = val.call(target, paginatedPipeline);
+          const countPipeline = [...pipeline, { $count: 'total' }];
+          const countPromise = target.aggregate(countPipeline).toArray()
+            .then((r) => (r[0]?.total ?? 0))
+            .catch(() => -1);
+          return makeCursorProxy(rawCursor, countPromise);
+        };
       }
 
       // All other methods: auto-capture Promise results
