@@ -91,7 +91,7 @@ describe('ResultsPanel pagination', () => {
     const user = userEvent.setup();
     render(<ResultsPanel tabId="t1" pageSize={50} onPageChange={onPageChange} />);
     await user.click(screen.getByRole('button', { name: /prev/i }));
-    expect(onPageChange).toHaveBeenCalledWith(1);
+    expect(onPageChange).toHaveBeenCalledWith(1, 50);
   });
 
   it('disables Prev on page 0', () => {
