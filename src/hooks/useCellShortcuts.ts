@@ -2,7 +2,15 @@ import { useCellSelection } from '../contexts/CellSelectionContext';
 import { useKeyboard } from './useKeyboard';
 import { keyboardService, type KeyboardService } from '../services/KeyboardService';
 
-export function useCellShortcuts(svc: KeyboardService = keyboardService): void {
+interface CellShortcutsOptions {
+  onViewRecord?: (doc: Record<string, unknown>) => void;
+  onEditRecord?: (doc: Record<string, unknown>) => void;
+}
+
+export function useCellShortcuts(
+  svc: KeyboardService = keyboardService,
+  options?: CellShortcutsOptions,
+): void {
   const { selected } = useCellSelection();
 
   useKeyboard({
@@ -46,6 +54,28 @@ export function useCellShortcuts(svc: KeyboardService = keyboardService): void {
     action: () => {
       if (!selected) return;
       navigator.clipboard.writeText(JSON.stringify(selected.doc, null, 2));
+    },
+  }, svc);
+
+  useKeyboard({
+    id: 'cell.viewRecord',
+    keys: { key: 'F3' },
+    label: 'View Full Record',
+    showInContextMenu: true,
+    action: () => {
+      if (!selected) return;
+      options?.onViewRecord?.(selected.doc);
+    },
+  }, svc);
+
+  useKeyboard({
+    id: 'cell.editRecord',
+    keys: { key: 'F4' },
+    label: 'Edit Full Record',
+    showInContextMenu: false,
+    action: () => {
+      if (!selected) return;
+      options?.onEditRecord?.(selected.doc);
     },
   }, svc);
 }

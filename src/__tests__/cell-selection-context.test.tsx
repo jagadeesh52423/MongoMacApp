@@ -58,16 +58,24 @@ describe('useCellShortcuts', () => {
     );
   }
 
-  it('registers 4 shortcuts', () => {
+  it('registers 6 shortcuts', () => {
     const svc = new KeyboardService();
     renderHook(() => useCellShortcuts(svc), { wrapper: makeWrapper(svc) });
-    expect(svc.getAll()).toHaveLength(4);
+    expect(svc.getAll()).toHaveLength(6);
   });
 
-  it('all 4 shortcuts have showInContextMenu: true', () => {
+  it('cell.viewRecord has showInContextMenu: true', () => {
     const svc = new KeyboardService();
     renderHook(() => useCellShortcuts(svc), { wrapper: makeWrapper(svc) });
-    expect(svc.getAll().every((s) => s.showInContextMenu)).toBe(true);
+    const s = svc.getAll().find((s) => s.id === 'cell.viewRecord')!;
+    expect(s.showInContextMenu).toBe(true);
+  });
+
+  it('cell.editRecord has showInContextMenu: false', () => {
+    const svc = new KeyboardService();
+    renderHook(() => useCellShortcuts(svc), { wrapper: makeWrapper(svc) });
+    const s = svc.getAll().find((s) => s.id === 'cell.editRecord')!;
+    expect(s.showInContextMenu).toBe(false);
   });
 
   it('cmd+c copies value to clipboard', async () => {
@@ -125,5 +133,46 @@ describe('useCellShortcuts', () => {
     const copyDoc = svc.getAll().find((s) => s.id === 'cell.copyDocument')!;
     await act(async () => { copyDoc.action(); });
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(JSON.stringify(doc, null, 2));
+  });
+
+  it('F3 calls onViewRecord with selected doc', () => {
+    const svc = new KeyboardService();
+    const onViewRecord = vi.fn();
+    const doc = { name: 'alice' };
+    const { result } = renderHook(
+      () => ({ shortcuts: useCellShortcuts(svc, { onViewRecord }), selection: useCellSelection() }),
+      { wrapper: makeWrapper(svc) }
+    );
+    act(() => {
+      result.current.selection.select({ rowIndex: 0, colKey: 'name', doc, value: 'alice' });
+    });
+    const viewShortcut = svc.getAll().find((s) => s.id === 'cell.viewRecord')!;
+    act(() => { viewShortcut.action(); });
+    expect(onViewRecord).toHaveBeenCalledWith(doc);
+  });
+
+  it('F4 calls onEditRecord with selected doc', () => {
+    const svc = new KeyboardService();
+    const onEditRecord = vi.fn();
+    const doc = { name: 'alice' };
+    const { result } = renderHook(
+      () => ({ shortcuts: useCellShortcuts(svc, { onEditRecord }), selection: useCellSelection() }),
+      { wrapper: makeWrapper(svc) }
+    );
+    act(() => {
+      result.current.selection.select({ rowIndex: 0, colKey: 'name', doc, value: 'alice' });
+    });
+    const editShortcut = svc.getAll().find((s) => s.id === 'cell.editRecord')!;
+    act(() => { editShortcut.action(); });
+    expect(onEditRecord).toHaveBeenCalledWith(doc);
+  });
+
+  it('F3 does nothing when no cell is selected', () => {
+    const svc = new KeyboardService();
+    const onViewRecord = vi.fn();
+    renderHook(() => useCellShortcuts(svc, { onViewRecord }), { wrapper: makeWrapper(svc) });
+    const viewShortcut = svc.getAll().find((s) => s.id === 'cell.viewRecord')!;
+    act(() => { viewShortcut.action(); });
+    expect(onViewRecord).not.toHaveBeenCalled();
   });
 });
