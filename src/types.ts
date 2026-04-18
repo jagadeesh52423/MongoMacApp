@@ -42,7 +42,7 @@ export interface EditorTab {
   title: string;
   content: string;
   isDirty: boolean;
-  type: 'script' | 'browse';
+  type: 'script';
   connectionId?: string;
   database?: string;
   collection?: string;
@@ -72,13 +72,6 @@ export interface CollectionNode {
 export interface IndexInfo {
   name: string;
   keys: Record<string, number>;
-}
-
-export interface BrowsePage {
-  docs: unknown[];
-  total: number;
-  page: number;
-  pageSize: number;
 }
 
 export interface PaginationState {

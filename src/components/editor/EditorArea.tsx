@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useEditorStore } from '../../store/editor';
 import { useConnectionsStore } from '../../store/connections';
 import { ScriptEditor } from './ScriptEditor';
-import { BrowseTab } from './BrowseTab';
 import { runScript } from '../../ipc';
 import { useResultsStore } from '../../store/results';
 import { ResultsPanel } from '../results/ResultsPanel';
@@ -126,13 +125,6 @@ export function EditorArea() {
               />
             </div>
           </>
-        )}
-        {active?.type === 'browse' && active.connectionId && active.database && active.collection && (
-          <BrowseTab
-            connectionId={active.connectionId}
-            database={active.database}
-            collection={active.collection}
-          />
         )}
       </div>
     </div>
