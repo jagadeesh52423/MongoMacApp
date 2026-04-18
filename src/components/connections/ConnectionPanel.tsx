@@ -41,6 +41,7 @@ export function ConnectionPanel() {
       type: 'script',
       connectionId: cId,
       database: db,
+      collection: col,
     });
   }
 

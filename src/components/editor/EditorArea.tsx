@@ -122,6 +122,10 @@ export function EditorArea() {
                 pageSize={activePageSize}
                 onPageChange={(page, pageSize) => handleRun(page, pageSize)}
                 onPageSizeChange={(size) => setPageSizes((prev) => ({ ...prev, [active.id]: size }))}
+                connectionId={active.connectionId}
+                database={active.database}
+                collection={active.collection}
+                onDocUpdated={() => handleRun(0, activePageSize)}
               />
             </div>
           </>

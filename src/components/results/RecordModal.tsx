@@ -90,8 +90,9 @@ export function RecordModal({
         zIndex: 1000,
       }}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
         e.stopPropagation();
+        if (e.key === 'Escape') onClose();
+        if (e.key === 'F4' && mode === 'view') switchToEdit();
       }}
     >
       <div
