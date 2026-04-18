@@ -77,8 +77,13 @@ export async function runScript(
   script: string,
   page = 0,
   pageSize = 50,
+  runId?: string,
 ): Promise<void> {
-  return invoke('run_script', { tabId, connectionId, database, script, page, pageSize });
+  return invoke('run_script', { tabId, connectionId, database, script, page, pageSize, runId });
+}
+
+export async function cancelScript(tabId: string): Promise<void> {
+  return invoke('cancel_script', { tabId });
 }
 
 export async function listScripts(): Promise<SavedScript[]> {

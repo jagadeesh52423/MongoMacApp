@@ -53,7 +53,7 @@ describe('editor store', () => {
 
 describe('results store', () => {
   it('appends groups during a run', () => {
-    useResultsStore.getState().startRun('t1');
+    useResultsStore.getState().startRun('t1', 'run-1');
     useResultsStore.getState().appendGroup('t1', { groupIndex: 0, docs: [{ a: 1 }] });
     useResultsStore.getState().finishRun('t1', 42);
     const r = useResultsStore.getState().byTab['t1'];
@@ -63,17 +63,30 @@ describe('results store', () => {
   });
 
   it('setPagination stores pagination for a tab', () => {
-    useResultsStore.getState().startRun('t1');
+    useResultsStore.getState().startRun('t1', 'run-1');
     useResultsStore.getState().setPagination('t1', { total: 200, page: 1, pageSize: 50 });
     const r = useResultsStore.getState().byTab['t1'];
     expect(r.pagination).toEqual({ total: 200, page: 1, pageSize: 50 });
   });
 
   it('startRun clears previous pagination', () => {
-    useResultsStore.getState().startRun('t1');
+    useResultsStore.getState().startRun('t1', 'run-1');
     useResultsStore.getState().setPagination('t1', { total: 200, page: 2, pageSize: 50 });
-    useResultsStore.getState().startRun('t1');
+    useResultsStore.getState().startRun('t1', 'run-2');
     const r = useResultsStore.getState().byTab['t1'];
     expect(r.pagination).toBeUndefined();
+  });
+
+  it('startRun stores runId for the tab', () => {
+    useResultsStore.getState().startRun('t1', 'run-abc');
+    const r = useResultsStore.getState().byTab['t1'];
+    expect(r.runId).toBe('run-abc');
+  });
+
+  it('startRun replaces old runId on second call', () => {
+    useResultsStore.getState().startRun('t1', 'run-1');
+    useResultsStore.getState().startRun('t1', 'run-2');
+    const r = useResultsStore.getState().byTab['t1'];
+    expect(r.runId).toBe('run-2');
   });
 });

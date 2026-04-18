@@ -48,6 +48,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::document::update_document,
             commands::document::delete_document,
             commands::script::run_script,
+            commands::script::cancel_script,
             commands::saved_script::list_scripts,
             commands::saved_script::create_script,
             commands::saved_script::update_script,

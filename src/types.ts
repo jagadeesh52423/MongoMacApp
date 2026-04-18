@@ -88,4 +88,5 @@ export interface ScriptEvent {
   error?: string;
   executionMs?: number;
   pagination?: PaginationState;
+  runId?: string;
 }
