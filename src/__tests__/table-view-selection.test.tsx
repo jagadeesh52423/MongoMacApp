@@ -4,10 +4,16 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { TableView } from '../components/results/TableView';
 import { CellSelectionProvider } from '../contexts/CellSelectionContext';
-import { useCellShortcuts } from '../hooks/useCellShortcuts';
+import { useTableActions } from '../hooks/useTableActions';
 
-function ShortcutsRegistrar() {
-  useCellShortcuts();
+function ShortcutsRegistrar({
+  onViewRecord,
+  onEditRecord,
+}: {
+  onViewRecord?: (doc: Record<string, unknown>) => void;
+  onEditRecord?: (doc: Record<string, unknown>) => void;
+} = {}) {
+  useTableActions({ onViewRecord, onEditRecord });
   return null;
 }
 
@@ -70,6 +76,22 @@ describe('TableView cell selection', () => {
     expect(screen.getByText('Copy Document')).toBeInTheDocument();
   });
 
+  it('context menu shows View Full Record action', async () => {
+    const user = userEvent.setup();
+    render(<TableView docs={docs} />, { wrapper: Wrapper });
+    const cell = screen.getAllByRole('cell').find((c) => c.textContent === 'alice')!;
+    await user.pointer({ target: cell, keys: '[MouseRight]' });
+    expect(screen.getByText('View Full Record')).toBeInTheDocument();
+  });
+
+  it('context menu shows Edit Full Record action', async () => {
+    const user = userEvent.setup();
+    render(<TableView docs={docs} />, { wrapper: Wrapper });
+    const cell = screen.getAllByRole('cell').find((c) => c.textContent === 'alice')!;
+    await user.pointer({ target: cell, keys: '[MouseRight]' });
+    expect(screen.getByText('Edit Full Record')).toBeInTheDocument();
+  });
+
   it('context menu closes on Escape', async () => {
     const user = userEvent.setup();
     render(<TableView docs={docs} />, { wrapper: Wrapper });
@@ -78,5 +100,45 @@ describe('TableView cell selection', () => {
     expect(screen.getByRole('menu')).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('F3 on selected cell calls onViewRecord', async () => {
+    const user = userEvent.setup();
+    const onViewRecord = vi.fn();
+
+    function WrapperWithHandlers({ children }: { children: ReactNode }) {
+      return (
+        <CellSelectionProvider>
+          <ShortcutsRegistrar onViewRecord={onViewRecord} />
+          {children}
+        </CellSelectionProvider>
+      );
+    }
+
+    render(<TableView docs={docs} />, { wrapper: WrapperWithHandlers });
+    const cell = screen.getAllByRole('cell').find((c) => c.textContent === 'alice')!;
+    await user.click(cell);
+    await user.keyboard('{F3}');
+    expect(onViewRecord).toHaveBeenCalledWith({ name: 'alice', age: 30 });
+  });
+
+  it('F4 on selected cell calls onEditRecord', async () => {
+    const user = userEvent.setup();
+    const onEditRecord = vi.fn();
+
+    function WrapperWithHandlers({ children }: { children: ReactNode }) {
+      return (
+        <CellSelectionProvider>
+          <ShortcutsRegistrar onEditRecord={onEditRecord} />
+          {children}
+        </CellSelectionProvider>
+      );
+    }
+
+    render(<TableView docs={docs} />, { wrapper: WrapperWithHandlers });
+    const cell = screen.getAllByRole('cell').find((c) => c.textContent === 'alice')!;
+    await user.click(cell);
+    await user.keyboard('{F4}');
+    expect(onEditRecord).toHaveBeenCalledWith({ name: 'alice', age: 30 });
   });
 });
