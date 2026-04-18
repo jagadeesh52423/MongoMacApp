@@ -1,14 +1,11 @@
 import { useRef, useMemo, useState, useCallback } from 'react';
-import { InlineCell } from './InlineCell';
-import { renderCell, cellEditString } from './cellRenderers';
+import { renderCell } from './cellRenderers';
 import { useCellSelection } from '../../contexts/CellSelectionContext';
 import { ContextMenu, type ContextMenuItem } from '../ui/ContextMenu';
 import { keyboardService, formatKeyCombo } from '../../services/KeyboardService';
 
 interface Props {
   docs: unknown[];
-  onEditCell?: (rowIdx: number, key: string, newValue: string) => void;
-  onDelete?: (rowIdx: number) => void;
 }
 
 function columnsOf(docs: unknown[]): string[] {
@@ -32,7 +29,7 @@ interface ContextMenuState {
   y: number;
 }
 
-export function TableView({ docs, onEditCell, onDelete }: Props) {
+export function TableView({ docs }: Props) {
   const columns = useMemo(() => columnsOf(docs), [docs]);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<1 | -1>(1);
@@ -117,7 +114,6 @@ export function TableView({ docs, onEditCell, onDelete }: Props) {
                 {c} {sortKey === c ? (sortDir === 1 ? '↑' : '↓') : ''}
               </th>
             ))}
-            {onDelete && <th />}
           </tr>
         </thead>
         <tbody>
@@ -143,25 +139,10 @@ export function TableView({ docs, onEditCell, onDelete }: Props) {
                       background: isSelected ? 'var(--bg-selected, rgba(59,130,246,0.08))' : undefined,
                     }}
                   >
-                    {onEditCell ? (
-                      <InlineCell
-                        value={cellEditString(raw)}
-                        onSave={(next) => {
-                          const cur = cellEditString(raw);
-                          if (next !== cur) onEditCell(i, c, next);
-                        }}
-                      />
-                    ) : (
-                      renderCell(raw)
-                    )}
+                    {renderCell(raw)}
                   </td>
                 );
               })}
-              {onDelete && (
-                <td style={{ borderBottom: '1px solid var(--border)', padding: '4px 8px' }}>
-                  <button onClick={() => onDelete(i)} title="Delete row">🗑</button>
-                </td>
-              )}
             </tr>
           ))}
         </tbody>
