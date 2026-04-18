@@ -34,7 +34,7 @@ export const useResultsStore = create<ResultsState>((set) => ({
   setError: (tabId, error) =>
     set((s) => {
       const cur = s.byTab[tabId] ?? { groups: [], isRunning: true };
-      return { byTab: { ...s.byTab, [tabId]: { ...cur, lastError: error } } };
+      return { byTab: { ...s.byTab, [tabId]: { ...cur, isRunning: false, lastError: error } } };
     }),
   finishRun: (tabId, executionMs) =>
     set((s) => {

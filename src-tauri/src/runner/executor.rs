@@ -3,6 +3,9 @@ use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::OnceLock;
+
+static NODE_PATH: OnceLock<String> = OnceLock::new();
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -12,13 +15,27 @@ pub struct RunnerStatus {
     pub message: Option<String>,
 }
 
+/// Resolve node binary path via login shell once, cache in NODE_PATH.
+fn resolve_node() -> Option<&'static str> {
+    let path = NODE_PATH.get_or_init(|| {
+        Command::new("/bin/zsh")
+            .args(["-l", "-c", "which node"])
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_default()
+    });
+    if path.is_empty() { None } else { Some(path.as_str()) }
+}
+
 pub fn check_runner() -> RunnerStatus {
-    let node_version = match Command::new("node").arg("--version").output() {
-        Ok(o) if o.status.success() => {
-            Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
-        }
-        _ => None,
-    };
+    let node_path = resolve_node();
+    let node_version = node_path.and_then(|p| {
+        Command::new(p).arg("--version").output().ok()
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+    });
     if node_version.is_none() {
         return RunnerStatus {
             ready: false,
@@ -46,7 +63,10 @@ pub fn install_runner(bundled_harness: &str) -> Result<(), String> {
     fs::write(harness_path(), bundled_harness).map_err(|e| e.to_string())?;
     let pkg = r#"{"name":"mongomacapp-runner","version":"1.0.0","dependencies":{"mongodb":"^6.8.0"}}"#;
     fs::write(dir.join("package.json"), pkg).map_err(|e| e.to_string())?;
-    let status = Command::new("npm")
+    // Resolve npm next to node binary
+    let node = resolve_node().ok_or("Node.js not found")?;
+    let npm = PathBuf::from(node).parent().unwrap().join("npm");
+    let status = Command::new(npm)
         .arg("install")
         .arg("--silent")
         .arg("--no-audit")
@@ -65,7 +85,10 @@ pub fn spawn_script(
     database: &str,
     script_path: &PathBuf,
 ) -> Result<std::process::Child, String> {
-    Command::new("node")
+    let node = resolve_node().ok_or("Node.js not found — check node installation")?;
+    println!("[spawn_script] node={node} harness={:?} db={database}", harness_path());
+    // Spawn node directly (not via shell) to avoid login-shell startup noise on stderr
+    Command::new(node)
         .arg(harness_path())
         .arg(database)
         .arg(script_path)
@@ -73,7 +96,7 @@ pub fn spawn_script(
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .map_err(|e| e.to_string())
+        .map_err(|e| { println!("[spawn_script] failed: {e}"); e.to_string() })
 }
 
 #[tauri::command]

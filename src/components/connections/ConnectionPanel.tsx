@@ -32,16 +32,15 @@ export function ConnectionPanel() {
   const [status, setStatus] = useState<Record<string, string>>({});
   const openTab = useEditorStore((s) => s.openTab);
 
-  function openBrowseTab(db: string, col: string, cId: string) {
+  function openCollectionScriptTab(db: string, col: string, cId: string) {
     openTab({
-      id: `browse:${cId}:${db}:${col}`,
+      id: `script:${cId}:${db}:${col}:${Date.now()}`,
       title: col,
-      content: '',
+      content: `db.getCollection("${col}").find({})`,
       isDirty: false,
-      type: 'browse',
+      type: 'script',
       connectionId: cId,
       database: db,
-      collection: col,
     });
   }
 
@@ -128,7 +127,7 @@ export function ConnectionPanel() {
               {connected && (
                 <ConnectionTree
                   connectionId={c.id}
-                  onOpenCollection={(db, col) => openBrowseTab(db, col, c.id)}
+                  onOpenCollection={(db, col) => openCollectionScriptTab(db, col, c.id)}
                 />
               )}
             </li>

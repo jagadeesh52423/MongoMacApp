@@ -11,17 +11,29 @@ export function EditorArea() {
   const { tabs, activeTabId, setActive, closeTab, updateContent, openTab } = useEditorStore();
   const { activeConnectionId, activeDatabase } = useConnectionsStore();
   const startRun = useResultsStore((s) => s.startRun);
+  const finishRun = useResultsStore((s) => s.finishRun);
+  const setError = useResultsStore((s) => s.setError);
   const active = tabs.find((t) => t.id === activeTabId);
   const completions = useCollectionCompletions(activeConnectionId, activeDatabase);
 
   async function handleRun() {
     if (!active || active.type !== 'script') return;
-    if (!activeConnectionId || !activeDatabase) {
+    const connId = active.connectionId ?? activeConnectionId;
+    const db = active.database ?? activeDatabase;
+    if (!connId || !db) {
       alert('Select a connection and database first');
       return;
     }
+    console.log('[handleRun] tabId:', active.id, 'connId:', connId, 'db:', db);
     startRun(active.id);
-    await runScript(active.id, activeConnectionId, activeDatabase, active.content);
+    try {
+      await runScript(active.id, connId, db, active.content);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[handleRun] runScript failed:', msg);
+      setError(active.id, msg);
+      finishRun(active.id, 0);
+    }
   }
 
   function newScriptTab() {

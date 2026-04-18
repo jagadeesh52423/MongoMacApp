@@ -10,6 +10,7 @@ export function useScriptEvents() {
     let unsub: (() => void) | null = null;
     listen<ScriptEvent>('script-event', (e) => {
       const p = e.payload;
+      console.log('[script-event]', p.kind, p.tabId, p.error ?? '');
       if (p.kind === 'group' && p.groupIndex !== undefined && p.docs !== undefined) {
         appendGroup(p.tabId, {
           groupIndex: p.groupIndex,
