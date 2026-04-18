@@ -89,7 +89,10 @@ export function RecordModal({
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 1000,
       }}
-      onKeyDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+        e.stopPropagation();
+      }}
     >
       <div
         ref={dialogRef}
