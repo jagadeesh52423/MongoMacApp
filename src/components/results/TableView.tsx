@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { InlineCell } from './InlineCell';
+import { renderCell, cellEditString } from './cellRenderers';
 
 interface Props {
   docs: unknown[];
@@ -77,9 +78,7 @@ export function TableView({ docs, onEditCell, onDelete }: Props) {
           {sorted.map((d, i) => (
             <tr key={i}>
               {columns.map((c) => {
-                const obj = d as Record<string, unknown>;
-                const raw = obj[c];
-                const str = raw === undefined ? '—' : typeof raw === 'object' ? JSON.stringify(raw) : String(raw);
+                const raw = (d as Record<string, unknown>)[c];
                 return (
                   <td
                     key={c}
@@ -87,13 +86,14 @@ export function TableView({ docs, onEditCell, onDelete }: Props) {
                   >
                     {onEditCell ? (
                       <InlineCell
-                        value={str}
-                        onSave={(newValue) => {
-                          if (newValue !== str) onEditCell(i, c, newValue);
+                        value={cellEditString(raw)}
+                        onSave={(next) => {
+                          const cur = cellEditString(raw);
+                          if (next !== cur) onEditCell(i, c, next);
                         }}
                       />
                     ) : (
-                      str
+                      renderCell(raw)
                     )}
                   </td>
                 );
