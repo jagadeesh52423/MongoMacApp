@@ -74,4 +74,5 @@ Harness-level cursor proxy interception. The Node.js harness already wraps colle
 ## Known Limitations
 
 - Aggregate pipelines with a user-supplied `$limit` stage may behave unexpectedly since pagination stages are appended after.
+- `find()` cursors: user-chained `.limit()` or `.skip()` modifiers are overridden by pagination at materialize time.
 - Entire script re-runs on each page change (acceptable for read-only operations).

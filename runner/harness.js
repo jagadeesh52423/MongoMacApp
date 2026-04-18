@@ -77,6 +77,7 @@ function makeCursorProxy(cursor, countPromise) {
     if (!promise) {
       if (countPromise !== undefined) {
         // Apply pagination after all user chaining is done
+        // User-chained .limit()/.skip() are overridden here — documented known limitation
         cursor = cursor.skip(PAGE * PAGE_SIZE).limit(PAGE_SIZE);
         promise = Promise.all([cursor.toArray(), countPromise]).then(([docs, total]) => {
           emitGroup(docs);
@@ -139,6 +140,12 @@ function makeCollectionProxy(col) {
       }
       if (prop === 'aggregate') {
         return (pipeline = []) => {
+          const lastStage = pipeline[pipeline.length - 1];
+          const isTerminal = lastStage && ('$merge' in lastStage || '$out' in lastStage);
+          if (isTerminal) {
+            // Terminal stages ($merge/$out) must be last — skip pagination
+            return makeCursorProxy(val.call(target, pipeline));
+          }
           const paginatedPipeline = [...pipeline, { $skip: PAGE * PAGE_SIZE }, { $limit: PAGE_SIZE }];
           const rawCursor = val.call(target, paginatedPipeline);
           const countPipeline = [...pipeline, { $count: 'total' }];
