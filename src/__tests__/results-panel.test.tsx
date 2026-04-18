@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ResultsPanel } from '../components/results/ResultsPanel';
@@ -42,5 +42,83 @@ describe('ResultsPanel', () => {
     render(<ResultsPanel tabId="t1" />);
     await user.click(screen.getByText('Table'));
     expect(screen.getAllByRole('cell').some((c) => c.textContent === 'alice')).toBe(true);
+  });
+});
+
+describe('ResultsPanel pagination', () => {
+  it('shows no pagination controls when pagination is absent', () => {
+    useResultsStore.setState({
+      byTab: {
+        t1: {
+          groups: [{ groupIndex: 0, docs: [{ id: 1 }] }],
+          isRunning: false,
+          executionMs: 5,
+        },
+      },
+    });
+    render(<ResultsPanel tabId="t1" onPageChange={() => {}} />);
+    expect(screen.queryByRole('button', { name: /prev/i })).not.toBeInTheDocument();
+  });
+
+  it('shows pagination controls when pagination is set', () => {
+    useResultsStore.setState({
+      byTab: {
+        t1: {
+          groups: [{ groupIndex: 0, docs: [{ id: 1 }] }],
+          isRunning: false,
+          executionMs: 5,
+          pagination: { total: 200, page: 1, pageSize: 50 },
+        },
+      },
+    });
+    render(<ResultsPanel tabId="t1" onPageChange={() => {}} />);
+    expect(screen.getByRole('button', { name: /prev/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
+    expect(screen.getByText(/of 4/i)).toBeInTheDocument();
+  });
+
+  it('calls onPageChange with prev page when Prev clicked', async () => {
+    const onPageChange = vi.fn();
+    useResultsStore.setState({
+      byTab: {
+        t1: {
+          groups: [],
+          isRunning: false,
+          pagination: { total: 200, page: 2, pageSize: 50 },
+        },
+      },
+    });
+    const user = userEvent.setup();
+    render(<ResultsPanel tabId="t1" onPageChange={onPageChange} />);
+    await user.click(screen.getByRole('button', { name: /prev/i }));
+    expect(onPageChange).toHaveBeenCalledWith(1);
+  });
+
+  it('disables Prev on page 0', () => {
+    useResultsStore.setState({
+      byTab: {
+        t1: {
+          groups: [],
+          isRunning: false,
+          pagination: { total: 100, page: 0, pageSize: 50 },
+        },
+      },
+    });
+    render(<ResultsPanel tabId="t1" onPageChange={() => {}} />);
+    expect(screen.getByRole('button', { name: /prev/i })).toBeDisabled();
+  });
+
+  it('disables Next on last page', () => {
+    useResultsStore.setState({
+      byTab: {
+        t1: {
+          groups: [],
+          isRunning: false,
+          pagination: { total: 100, page: 1, pageSize: 50 },
+        },
+      },
+    });
+    render(<ResultsPanel tabId="t1" onPageChange={() => {}} />);
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
   });
 });

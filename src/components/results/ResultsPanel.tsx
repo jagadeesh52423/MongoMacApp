@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { save as saveDialog } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { useResultsStore } from '../../store/results';
@@ -8,11 +8,22 @@ import { toCsv, toJsonText } from '../../utils/export';
 
 interface Props {
   tabId: string;
+  onPageChange?: (page: number) => void;
 }
 
-export function ResultsPanel({ tabId }: Props) {
+export function ResultsPanel({ tabId, onPageChange }: Props) {
   const res = useResultsStore((s) => s.byTab[tabId]);
   const [view, setView] = useState<'json' | 'table'>('json');
+  const pagination = res?.pagination;
+  const totalPages = pagination && pagination.total >= 0
+    ? Math.ceil(pagination.total / pagination.pageSize)
+    : -1;
+
+  // 1-indexed input synced to pagination.page
+  const [inputPage, setInputPage] = useState(1);
+  useEffect(() => {
+    if (pagination) setInputPage(pagination.page + 1);
+  }, [pagination?.page]);
 
   const allDocs = useMemo(() => {
     if (!res) return [];
@@ -27,7 +38,16 @@ export function ResultsPanel({ tabId }: Props) {
     await writeTextFile(path as string, content);
   }
 
-  if (!res || (res.groups.length === 0 && !res.isRunning && !res.lastError)) {
+  function handlePageInputKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter') return;
+    const parsed = parseInt(String(inputPage), 10);
+    if (isNaN(parsed)) return;
+    const clamped = Math.max(1, totalPages > 0 ? Math.min(parsed, totalPages) : parsed);
+    setInputPage(clamped);
+    onPageChange?.(clamped - 1); // convert to 0-indexed
+  }
+
+  if (!res || (res.groups.length === 0 && !res.isRunning && !res.lastError && !res.pagination)) {
     return (
       <div style={{ padding: 12, color: 'var(--fg-dim)' }}>
         Run a script to see results.
@@ -63,6 +83,47 @@ export function ResultsPanel({ tabId }: Props) {
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {view === 'json' ? <JsonView docs={allDocs} /> : <TableView docs={allDocs} />}
       </div>
+      {pagination && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '4px 8px',
+            borderTop: '1px solid var(--border)',
+            background: 'var(--bg-panel)',
+            fontSize: 12,
+          }}
+        >
+          <button
+            aria-label="Prev page"
+            onClick={() => onPageChange?.(pagination.page - 1)}
+            disabled={pagination.page === 0 || res.isRunning}
+          >
+            ← Prev
+          </button>
+          <span>Page</span>
+          <input
+            type="number"
+            value={inputPage}
+            min={1}
+            max={totalPages > 0 ? totalPages : undefined}
+            onChange={(e) => setInputPage(Number(e.target.value))}
+            onKeyDown={handlePageInputKey}
+            style={{ width: 48, textAlign: 'center' }}
+          />
+          <span>
+            of {totalPages > 0 ? totalPages : '?'}
+          </span>
+          <button
+            aria-label="Next page"
+            onClick={() => onPageChange?.(pagination.page + 1)}
+            disabled={(totalPages > 0 && pagination.page >= totalPages - 1) || res.isRunning}
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
