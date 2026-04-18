@@ -6,17 +6,20 @@ import { JsonView } from './JsonView';
 import { TableView } from './TableView';
 import { toCsv, toJsonText } from '../../utils/export';
 
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100, 200] as const;
+
 interface Props {
   tabId: string;
-  onPageChange?: (page: number) => void;
+  onPageChange?: (page: number, pageSize: number) => void;
 }
 
 export function ResultsPanel({ tabId, onPageChange }: Props) {
   const res = useResultsStore((s) => s.byTab[tabId]);
   const [view, setView] = useState<'json' | 'table'>('json');
+  const [pageSize, setPageSize] = useState(50);
   const pagination = res?.pagination;
   const totalPages = pagination && pagination.total >= 0
-    ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize))
+    ? Math.max(1, Math.ceil(pagination.total / pageSize))
     : -1;
 
   // 1-indexed input synced to pagination.page
@@ -44,7 +47,7 @@ export function ResultsPanel({ tabId, onPageChange }: Props) {
     if (isNaN(parsed)) return;
     const clamped = Math.max(1, totalPages > 0 ? Math.min(parsed, totalPages) : parsed);
     setInputPage(clamped);
-    onPageChange?.(clamped - 1); // convert to 0-indexed
+    onPageChange?.(clamped - 1, pageSize); // convert to 0-indexed
   }
 
   if (!res || (res.groups.length === 0 && !res.isRunning && !res.lastError && !res.pagination)) {
@@ -97,7 +100,7 @@ export function ResultsPanel({ tabId, onPageChange }: Props) {
         >
           <button
             aria-label="Prev page"
-            onClick={() => onPageChange?.(pagination.page - 1)}
+            onClick={() => onPageChange?.(pagination.page - 1, pageSize)}
             disabled={pagination.page === 0 || res.isRunning}
           >
             ← Prev
@@ -117,11 +120,26 @@ export function ResultsPanel({ tabId, onPageChange }: Props) {
           </span>
           <button
             aria-label="Next page"
-            onClick={() => onPageChange?.(pagination.page + 1)}
+            onClick={() => onPageChange?.(pagination.page + 1, pageSize)}
             disabled={(totalPages > 0 && pagination.page >= totalPages - 1) || res.isRunning}
           >
             Next →
           </button>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              setPageSize(next);
+              onPageChange?.(0, next);
+            }}
+            disabled={res.isRunning}
+            style={{ marginLeft: 'auto' }}
+          >
+            {PAGE_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          <span>per page</span>
         </div>
       )}
     </div>
