@@ -16,7 +16,7 @@ export function EditorArea() {
   const active = tabs.find((t) => t.id === activeTabId);
   const completions = useCollectionCompletions(activeConnectionId, activeDatabase);
 
-  async function handleRun(page = 0) {
+  async function handleRun(page = 0, pageSize = 50) {
     if (!active || active.type !== 'script') return;
     const connId = active.connectionId ?? activeConnectionId;
     const db = active.database ?? activeDatabase;
@@ -24,10 +24,10 @@ export function EditorArea() {
       alert('Select a connection and database first');
       return;
     }
-    console.log('[handleRun] tabId:', active.id, 'connId:', connId, 'db:', db, 'page:', page);
+    console.log('[handleRun] tabId:', active.id, 'connId:', connId, 'db:', db, 'page:', page, 'pageSize:', pageSize);
     startRun(active.id);
     try {
-      await runScript(active.id, connId, db, active.content, page, 50);
+      await runScript(active.id, connId, db, active.content, page, pageSize);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[handleRun] runScript failed:', msg);
@@ -115,7 +115,7 @@ export function EditorArea() {
               />
             </div>
             <div style={{ height: 260, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
-              <ResultsPanel tabId={active.id} onPageChange={(page) => handleRun(page)} />
+              <ResultsPanel tabId={active.id} onPageChange={(page, pageSize) => handleRun(page, pageSize)} />
             </div>
           </>
         )}
