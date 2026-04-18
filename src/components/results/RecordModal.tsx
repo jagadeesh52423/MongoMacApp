@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { updateDocument } from '../../ipc';
 
 interface RecordModalProps {
@@ -28,6 +28,11 @@ export function RecordModal({
   const [editedJson, setEditedJson] = useState(originalJson);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -84,11 +89,16 @@ export function RecordModal({
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 1000,
       }}
+      onKeyDown={(e) => e.stopPropagation()}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={mode === 'view' ? 'Full Record' : 'Edit Record'}
+        tabIndex={-1}
+        // eslint-disable-next-line jsx-a11y/no-autofocus
+        autoFocus
         style={{
           background: 'var(--bg-panel)',
           border: '1px solid var(--border)',
@@ -100,6 +110,7 @@ export function RecordModal({
           flexDirection: 'column',
           padding: 16,
           gap: 12,
+          outline: 'none',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

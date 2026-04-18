@@ -135,3 +135,32 @@ describe('RecordModal — edit mode', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 });
+
+describe('RecordModal', () => {
+  const baseProps = {
+    doc: { _id: '507f1f77bcf86cd799439011', name: 'alice', age: 30 },
+    initialMode: 'view' as const,
+    connectionId: 'c1',
+    database: 'mydb',
+    collection: 'users',
+    onClose: vi.fn(),
+    onSaved: vi.fn(),
+  };
+
+  it('dialog is focused on mount', () => {
+    render(<RecordModal {...baseProps} />);
+    expect(screen.getByRole('dialog')).toHaveFocus();
+  });
+
+  it('keyboard events on modal do not propagate to parent', () => {
+    const parentKeyDown = vi.fn();
+    render(
+      <div onKeyDown={parentKeyDown}>
+        <RecordModal {...baseProps} />
+      </div>
+    );
+    const dialog = screen.getByRole('dialog');
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'F3', bubbles: true }));
+    expect(parentKeyDown).not.toHaveBeenCalled();
+  });
+});
