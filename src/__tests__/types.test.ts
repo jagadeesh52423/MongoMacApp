@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Connection, EditorTab } from '../types';
+import type { Connection } from '../types';
 
 describe('types smoke', () => {
   it('Connection shape accepts all known fields', () => {
@@ -13,17 +13,4 @@ describe('types smoke', () => {
     expect(c.name).toBe('local');
   });
 
-  it('EditorTab allows browse type', () => {
-    const tab: EditorTab = {
-      id: 't1',
-      title: 'users',
-      content: '',
-      isDirty: false,
-      type: 'browse',
-      connectionId: 'c1',
-      database: 'mydb',
-      collection: 'users',
-    };
-    expect(tab.type).toBe('browse');
-  });
 });

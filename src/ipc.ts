@@ -5,7 +5,6 @@ import type {
   SavedScript,
   CollectionNode,
   IndexInfo,
-  BrowsePage,
 } from './types';
 
 export async function listConnections(): Promise<Connection[]> {
@@ -50,16 +49,6 @@ export async function listIndexes(
   collection: string,
 ): Promise<IndexInfo[]> {
   return invoke('list_indexes', { connectionId, database, collection });
-}
-
-export async function browseCollection(
-  connectionId: string,
-  database: string,
-  collection: string,
-  page: number,
-  pageSize: number,
-): Promise<BrowsePage> {
-  return invoke('browse_collection', { connectionId, database, collection, page, pageSize });
 }
 
 export async function updateDocument(
