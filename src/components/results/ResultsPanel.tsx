@@ -7,17 +7,16 @@ import { TableView } from './TableView';
 import { RecordModal } from './RecordModal';
 import { toCsv, toJsonText } from '../../utils/export';
 import { CellSelectionProvider, useCellSelection } from '../../contexts/CellSelectionContext';
-import { useCellShortcuts } from '../../hooks/useCellShortcuts';
-import { keyboardService } from '../../services/KeyboardService';
+import { useTableActions } from '../../hooks/useTableActions';
 
-function CellShortcutsRegistrar({
+function TableActionsRegistrar({
   onViewRecord,
   onEditRecord,
 }: {
   onViewRecord?: (doc: Record<string, unknown>) => void;
   onEditRecord?: (doc: Record<string, unknown>) => void;
 }) {
-  useCellShortcuts(keyboardService, { onViewRecord, onEditRecord });
+  useTableActions({ onViewRecord, onEditRecord });
   return null;
 }
 
@@ -86,7 +85,7 @@ export function ResultsPanel({
   if (!res || (res.groups.length === 0 && !res.isRunning && !res.lastError && !res.pagination)) {
     return (
       <CellSelectionProvider>
-        <CellShortcutsRegistrar
+        <TableActionsRegistrar
           onViewRecord={connectionId && database && collection
             ? (doc) => setRecordModal({ doc, mode: 'view' })
             : undefined}
@@ -115,7 +114,7 @@ export function ResultsPanel({
   return (
     <CellSelectionProvider>
       <SelectionClearer tabId={tabId} isRunning={!!res?.isRunning} />
-      <CellShortcutsRegistrar
+      <TableActionsRegistrar
         onViewRecord={connectionId && database && collection
           ? (doc) => setRecordModal({ doc, mode: 'view' })
           : undefined}
