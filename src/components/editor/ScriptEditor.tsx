@@ -14,6 +14,18 @@ export function ScriptEditor({ value, onChange, onRun, collections = [] }: Props
 
   const handleMount: OnMount = (editor, monaco) => {
     monacoRef.current = monaco;
+    monaco.editor.defineTheme('mongodb-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [],
+      colors: {
+        'editor.background': '#001e2b',
+        'editor.lineHighlightBackground': '#0d2d3c',
+        'editorGutter.background': '#001e2b',
+        'minimap.background': '#001e2b',
+      },
+    });
+    monaco.editor.setTheme('mongodb-dark');
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
       onRun?.();
     });
@@ -53,7 +65,7 @@ export function ScriptEditor({ value, onChange, onRun, collections = [] }: Props
     <Editor
       height="100%"
       language="javascript"
-      theme="vs-dark"
+      theme="mongodb-dark"
       value={value}
       onChange={(v) => onChange(v ?? '')}
       onMount={handleMount}
