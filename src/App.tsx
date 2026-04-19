@@ -13,6 +13,17 @@ export default function App() {
   useScriptEvents();
 
   useEffect(() => {
+    // Prevent WKWebView from forwarding Escape to the native macOS responder
+    // chain, which exits fullscreen. Capture phase fires before any element
+    // handler (including Monaco), so this covers all focus positions.
+    function suppressEscDefault(e: KeyboardEvent) {
+      if (e.key === 'Escape') e.preventDefault();
+    }
+    window.addEventListener('keydown', suppressEscDefault, true);
+    return () => window.removeEventListener('keydown', suppressEscDefault, true);
+  }, []);
+
+  useEffect(() => {
     checkNodeRunner().then((status) => {
       console.log('[runner] check:', status);
       if (!status.ready) {
