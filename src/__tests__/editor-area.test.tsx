@@ -20,17 +20,20 @@ vi.mock('../ipc', () => ({
   runScript: vi.fn().mockResolvedValue(undefined),
   cancelScript: vi.fn().mockResolvedValue(undefined),
   listCollections: vi.fn().mockResolvedValue([]),
+  listDatabases: vi.fn().mockResolvedValue(['mydb']),
 }));
 
+const mockConn = { id: 'conn1', name: 'Test Connection' };
+
 function openScriptTab() {
-  useEditorStore.getState().openTab({
-    id: 't1', title: 'a.js', content: 'db.users.find({})', isDirty: false, type: 'script',
-  });
   useConnectionsStore.setState({
-    connections: [],
+    connections: [mockConn],
     activeConnectionId: 'conn1',
     activeDatabase: 'mydb',
     connectedIds: new Set(['conn1']),
+  });
+  useEditorStore.getState().openTab({
+    id: 't1', title: 'a.js', content: 'db.users.find({})', isDirty: false, type: 'script',
   });
 }
 

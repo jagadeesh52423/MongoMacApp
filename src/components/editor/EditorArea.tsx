@@ -2,19 +2,23 @@ import { useState } from 'react';
 import { useEditorStore } from '../../store/editor';
 import { useConnectionsStore } from '../../store/connections';
 import { ScriptEditor } from './ScriptEditor';
+import { ContextBar } from './ContextBar';
 import { runScript, cancelScript } from '../../ipc';
 import { useResultsStore } from '../../store/results';
 import { ResultsPanel } from '../results/ResultsPanel';
 import { useCollectionCompletions } from '../../hooks/useCollectionCompletions';
 
 export function EditorArea() {
-  const { tabs, activeTabId, setActive, closeTab, updateContent, openTab } = useEditorStore();
+  const { tabs, activeTabId, setActive, closeTab, updateContent, openTab, updateTab } = useEditorStore();
   const { activeConnectionId, activeDatabase } = useConnectionsStore();
   const startRun = useResultsStore((s) => s.startRun);
   const finishRun = useResultsStore((s) => s.finishRun);
   const setError = useResultsStore((s) => s.setError);
   const active = tabs.find((t) => t.id === activeTabId);
-  const completions = useCollectionCompletions(activeConnectionId, activeDatabase);
+  const completions = useCollectionCompletions(
+    active?.connectionId ?? activeConnectionId,
+    active?.database ?? activeDatabase,
+  );
   const [pageSizes, setPageSizes] = useState<Record<string, number>>({});
   const activePageSize = active ? (pageSizes[active.id] ?? 50) : 50;
   const isRunning = useResultsStore((s) => (active ? !!s.byTab[active.id]?.isRunning : false));
@@ -23,10 +27,7 @@ export function EditorArea() {
     if (!active || active.type !== 'script') return;
     const connId = active.connectionId ?? activeConnectionId;
     const db = active.database ?? activeDatabase;
-    if (!connId || !db) {
-      alert('Select a connection and database first');
-      return;
-    }
+    if (!connId || !db) return;
     const runId = crypto.randomUUID();
     console.log('[handleRun] tabId:', active.id, 'connId:', connId, 'db:', db, 'page:', page, 'pageSize:', pageSize, 'runId:', runId);
     startRun(active.id, runId);
@@ -105,20 +106,25 @@ export function EditorArea() {
             + New
           </button>
         </div>
-        <div style={{ paddingRight: 10, display: 'flex', gap: 6 }}>
-          <button
-            onClick={() => handleRun(0)}
-            disabled={!active || active.type !== 'script' || isRunning}
-          >
-            ▶ Run
-          </button>
-          {isRunning && (
-            <button onClick={handleCancel}>
-              ✕ Cancel
-            </button>
-          )}
-        </div>
+        {isRunning && (
+          <div style={{ paddingRight: 10 }}>
+            <button onClick={handleCancel}>✕ Cancel</button>
+          </div>
+        )}
       </div>
+      {active?.type === 'script' && (
+        <ContextBar
+          tabId={active.id}
+          connectionId={active.connectionId}
+          database={active.database}
+          onConnectionChange={(id) =>
+            updateTab(active.id, { connectionId: id, database: undefined })
+          }
+          onDatabaseChange={(db) => updateTab(active.id, { database: db })}
+          onRun={() => handleRun(0)}
+          isRunning={isRunning}
+        />
+      )}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {!active && (
           <div style={{ padding: 20, color: 'var(--fg-dim)' }}>No editor tab open.</div>

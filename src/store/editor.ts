@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { EditorTab } from '../types';
+import { useConnectionsStore } from './connections';
 
 interface EditorState {
   tabs: EditorTab[];
@@ -10,6 +11,7 @@ interface EditorState {
   updateContent: (id: string, content: string) => void;
   markClean: (id: string) => void;
   renameTab: (id: string, title: string) => void;
+  updateTab: (id: string, patch: Partial<EditorTab>) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -19,7 +21,18 @@ export const useEditorStore = create<EditorState>((set) => ({
     set((s) => {
       const existing = s.tabs.find((t) => t.id === tab.id);
       if (existing) return { activeTabId: tab.id };
-      return { tabs: [...s.tabs, tab], activeTabId: tab.id };
+      let next = tab;
+      if (tab.type === 'script' && !tab.connectionId) {
+        const { activeConnectionId, activeDatabase } = useConnectionsStore.getState();
+        if (activeConnectionId) {
+          next = {
+            ...tab,
+            connectionId: activeConnectionId,
+            database: tab.database ?? activeDatabase ?? undefined,
+          };
+        }
+      }
+      return { tabs: [...s.tabs, next], activeTabId: next.id };
     }),
   closeTab: (id) =>
     set((s) => {
@@ -43,4 +56,8 @@ export const useEditorStore = create<EditorState>((set) => ({
     })),
   renameTab: (id, title) =>
     set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, title } : t)) })),
+  updateTab: (id, patch) =>
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+    })),
 }));
