@@ -15,7 +15,8 @@ export function SidePanel({ active, children }: Props) {
   return (
     <div
       style={{
-        width: 280,
+        width: '100%',
+        height: '100%',
         background: 'var(--bg-panel)',
         borderRight: '1px solid var(--border)',
         display: 'flex',
