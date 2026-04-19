@@ -20,9 +20,8 @@ export function RecordModal({
   onClose,
   onSaved,
 }: RecordModalProps) {
-  const { _id, ...rest } = doc;
-  const idStr = String(_id ?? '');
-  const originalJson = JSON.stringify(rest, null, 2);
+  const idStr = String(doc._id ?? '');
+  const originalJson = JSON.stringify(doc, null, 2);
 
   const [mode, setMode] = useState<'view' | 'edit'>(initialMode);
   const [editedJson, setEditedJson] = useState(originalJson);
@@ -50,14 +49,19 @@ export function RecordModal({
       setError((e as Error).message);
       return;
     }
-    if (JSON.stringify(parsed) === JSON.stringify(rest)) {
+    if (String(parsed._id) !== idStr) {
+      setError(`_id cannot be changed. Original: ${idStr}`);
+      return;
+    }
+    if (JSON.stringify(parsed) === JSON.stringify(doc)) {
       onClose();
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await updateDocument(connectionId, database, collection, idStr, JSON.stringify(parsed));
+      const { _id: _ignored, ...updatePayload } = parsed;
+      await updateDocument(connectionId, database, collection, idStr, JSON.stringify(updatePayload));
       onSaved();
       onClose();
     } catch (e) {
@@ -128,24 +132,6 @@ export function RecordModal({
             {mode === 'view' ? 'Full Record' : 'Edit Record'}
           </span>
           <button aria-label="Close" onClick={onClose}>✕</button>
-        </div>
-
-        <div
-          style={{
-            background: 'var(--bg-row-alt, #2d3748)',
-            border: '1px solid var(--border)',
-            borderRadius: 4,
-            padding: '4px 10px',
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 12,
-          }}
-        >
-          <span style={{ color: 'var(--fg-dim)', textTransform: 'uppercase', fontSize: 10, letterSpacing: 1 }}>_id</span>
-          <span style={{ color: 'var(--accent-yellow, #fbd38d)' }}>{idStr}</span>
-          <span style={{ marginLeft: 'auto', color: 'var(--fg-dim)', fontSize: 10 }}>read-only</span>
         </div>
 
         {mode === 'view' ? (
