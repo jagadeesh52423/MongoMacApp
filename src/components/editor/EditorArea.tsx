@@ -10,6 +10,8 @@ import { ResultsPanel } from '../results/ResultsPanel';
 import { useCollectionCompletions } from '../../hooks/useCollectionCompletions';
 import { SplitHandle } from '../shared/SplitHandle';
 import { useActivateScope } from '../../services/KeyboardService';
+import { useTabActions } from '../../hooks/useTabActions';
+import { newScriptTab } from '../../utils/newScriptTab';
 
 export function EditorArea() {
   const {
@@ -38,6 +40,7 @@ export function EditorArea() {
   const isRunning = useResultsStore((s) => (active ? !!s.byTab[active.id]?.isRunning : false));
   const activateEditor = useActivateScope('editor');
   const activateResults = useActivateScope('results');
+  useTabActions();
 
   async function handleRun(page = 0, pageSize = activePageSize) {
     if (!active || active.type !== 'script') return;
@@ -70,15 +73,8 @@ export function EditorArea() {
     bumpScriptsVersion();
   }
 
-  function newScriptTab() {
-    const id = `script:${Date.now()}`;
-    openTab({
-      id,
-      title: 'untitled.js',
-      content: '// write your MongoDB script here\n',
-      isDirty: false,
-      type: 'script',
-    });
+  function handleNewTab() {
+    openTab(newScriptTab());
   }
 
   const activeSizes = (active && panelSizes[active.id]) || DEFAULT_PANEL_SIZES;
@@ -128,7 +124,7 @@ export function EditorArea() {
               </span>
             </div>
           ))}
-          <button onClick={newScriptTab} style={{ margin: '0 6px' }}>
+          <button onClick={handleNewTab} style={{ margin: '0 6px' }}>
             + New
           </button>
         </div>
