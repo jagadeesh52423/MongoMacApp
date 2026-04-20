@@ -1,4 +1,4 @@
-import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, createElement, useCallback, useContext, useMemo, type ReactNode } from 'react';
 
 export interface KeyCombo {
   cmd?: boolean;
@@ -14,6 +14,7 @@ export interface ShortcutDef {
   label: string;
   action: () => void;
   showInContextMenu?: boolean;
+  scope?: string;
 }
 
 export function formatKeyCombo(keys: KeyCombo): string {
@@ -53,6 +54,15 @@ export class KeyboardService {
   private _registry = new Map<string, ShortcutDef>();
   private _defaults = new Map<string, KeyCombo>();
   private _pendingOverrides: Record<string, string> = {};
+  private _activeScope = '';
+
+  setScope(scope: string): void {
+    this._activeScope = scope;
+  }
+
+  getScope(): string {
+    return this._activeScope;
+  }
 
   register(def: ShortcutDef): () => void {
     if (!this._defaults.has(def.id)) {
@@ -71,6 +81,7 @@ export class KeyboardService {
 
   dispatch(e: KeyboardEvent): void {
     for (const def of this._registry.values()) {
+      if (def.scope && def.scope !== this._activeScope) continue;
       const k = def.keys;
       if (
         e.key.toLowerCase() === k.key.toLowerCase() &&
@@ -124,4 +135,9 @@ export function KeyboardServiceProvider({
 
 export function useKeyboardService(): KeyboardService {
   return useContext(KeyboardServiceContext);
+}
+
+export function useActivateScope(scope: string): () => void {
+  const svc = useKeyboardService();
+  return useCallback(() => svc.setScope(scope), [svc, scope]);
 }

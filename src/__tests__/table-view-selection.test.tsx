@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { TableView } from '../components/results/TableView';
 import { CellSelectionProvider } from '../contexts/CellSelectionContext';
 import { useTableActions } from '../hooks/useTableActions';
+import { keyboardService } from '../services/KeyboardService';
 
 function ShortcutsRegistrar({
   onViewRecord,
@@ -25,6 +26,7 @@ beforeEach(() => {
     writable: true,
     configurable: true,
   });
+  keyboardService.setScope('results');
 });
 
 function Wrapper({ children }: { children: ReactNode }) {

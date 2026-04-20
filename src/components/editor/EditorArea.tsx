@@ -9,6 +9,7 @@ import { useResultsStore } from '../../store/results';
 import { ResultsPanel } from '../results/ResultsPanel';
 import { useCollectionCompletions } from '../../hooks/useCollectionCompletions';
 import { SplitHandle } from '../shared/SplitHandle';
+import { useActivateScope } from '../../services/KeyboardService';
 
 export function EditorArea() {
   const {
@@ -35,6 +36,8 @@ export function EditorArea() {
   const [pageSizes, setPageSizes] = useState<Record<string, number>>({});
   const activePageSize = active ? (pageSizes[active.id] ?? 50) : 50;
   const isRunning = useResultsStore((s) => (active ? !!s.byTab[active.id]?.isRunning : false));
+  const activateEditor = useActivateScope('editor');
+  const activateResults = useActivateScope('results');
 
   async function handleRun(page = 0, pageSize = activePageSize) {
     if (!active || active.type !== 'script') return;
@@ -161,16 +164,18 @@ export function EditorArea() {
             style={{ flex: 1, minHeight: 0 }}
           >
             <Panel minSize={20} defaultSize={editorDefault}>
-              <ScriptEditor
-                value={active.content}
-                onChange={(v) => updateContent(active.id, v)}
-                onRun={() => handleRun(0)}
-                collections={completions.map((c) => c.name)}
-              />
+              <div style={{ height: '100%' }} onMouseDown={activateEditor}>
+                <ScriptEditor
+                  value={active.content}
+                  onChange={(v) => updateContent(active.id, v)}
+                  onRun={() => handleRun(0)}
+                  collections={completions.map((c) => c.name)}
+                />
+              </div>
             </Panel>
             <SplitHandle direction="vertical" />
             <Panel minSize={20} defaultSize={resultsDefault}>
-              <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }} onMouseDown={activateResults}>
                 <ResultsPanel
                   tabId={active.id}
                   pageSize={activePageSize}

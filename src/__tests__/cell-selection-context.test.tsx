@@ -60,10 +60,17 @@ describe('useTableActions', () => {
     );
   }
 
-  it('registers 6 actions', () => {
+  it('registers 10 actions (6 table + 4 nav)', () => {
     const svc = new KeyboardService();
     renderHook(() => useTableActions(), { wrapper: makeWrapper(svc) });
-    expect(svc.getShortcuts()).toHaveLength(6);
+    expect(svc.getShortcuts()).toHaveLength(10);
+  });
+
+  it('all table actions are scoped to "results"', () => {
+    const svc = new KeyboardService();
+    renderHook(() => useTableActions(), { wrapper: makeWrapper(svc) });
+    const shortcuts = svc.getShortcuts();
+    expect(shortcuts.every((s) => s.scope === 'results')).toBe(true);
   });
 
   it('cell.viewRecord has showInContextMenu: true always', () => {

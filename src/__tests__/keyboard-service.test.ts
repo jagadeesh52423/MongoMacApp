@@ -15,6 +15,7 @@ function makeKeyEvent(overrides: Partial<KeyboardEvent>): KeyboardEvent {
     shiftKey: false,
     altKey: false,
     preventDefault: vi.fn(),
+    stopPropagation: vi.fn(),
     ...overrides,
   } as unknown as KeyboardEvent;
 }
@@ -60,6 +61,54 @@ describe('KeyboardService', () => {
     svc.register({ id: 'a', keys: { cmd: true, key: 'c' }, label: 'A', action: vi.fn(), showInContextMenu: true });
     svc.register({ id: 'b', keys: { cmd: true, key: 'v' }, label: 'B', action: vi.fn() });
     expect(svc.getShortcuts()).toHaveLength(2);
+  });
+
+  it('fires scoped shortcut when active scope matches', () => {
+    const action = vi.fn();
+    svc.register({ id: 'scoped', keys: { cmd: true, key: 'c' }, label: 'Copy', action, scope: 'results' });
+    svc.setScope('results');
+    svc.dispatch(makeKeyEvent({ key: 'c', metaKey: true }));
+    expect(action).toHaveBeenCalledOnce();
+  });
+
+  it('does not fire scoped shortcut when active scope does not match', () => {
+    const action = vi.fn();
+    svc.register({ id: 'scoped', keys: { cmd: true, key: 'c' }, label: 'Copy', action, scope: 'results' });
+    svc.setScope('editor');
+    svc.dispatch(makeKeyEvent({ key: 'c', metaKey: true }));
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  it('does not fire scoped shortcut when active scope is empty', () => {
+    const action = vi.fn();
+    svc.register({ id: 'scoped', keys: { cmd: true, key: 'c' }, label: 'Copy', action, scope: 'results' });
+    svc.dispatch(makeKeyEvent({ key: 'c', metaKey: true }));
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  it('fires unscoped shortcut regardless of active scope', () => {
+    const action = vi.fn();
+    svc.register({ id: 'unscoped', keys: { cmd: true, key: 'c' }, label: 'Copy', action });
+    svc.setScope('editor');
+    svc.dispatch(makeKeyEvent({ key: 'c', metaKey: true }));
+    expect(action).toHaveBeenCalledOnce();
+  });
+
+  it('fires unscoped shortcut when no scope is active', () => {
+    const action = vi.fn();
+    svc.register({ id: 'unscoped', keys: { cmd: true, key: 'c' }, label: 'Copy', action });
+    svc.dispatch(makeKeyEvent({ key: 'c', metaKey: true }));
+    expect(action).toHaveBeenCalledOnce();
+  });
+
+  it('setScope / getScope round-trip returns the stored scope', () => {
+    expect(svc.getScope()).toBe('');
+    svc.setScope('results');
+    expect(svc.getScope()).toBe('results');
+    svc.setScope('editor');
+    expect(svc.getScope()).toBe('editor');
+    svc.setScope('');
+    expect(svc.getScope()).toBe('');
   });
 });
 

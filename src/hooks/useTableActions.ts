@@ -15,6 +15,7 @@ interface TableActionDef {
   keys: KeyCombo;
   label: string;
   showInContextMenu: boolean;
+  scope?: string;
   execute: (selected: SelectedCell | null, handlers: TableActionHandlers) => void;
 }
 
@@ -24,6 +25,7 @@ const TABLE_ACTIONS: TableActionDef[] = [
     keys: { cmd: true, key: 'c' },
     label: 'Copy Value',
     showInContextMenu: true,
+    scope: 'results',
     execute: (selected) => {
       if (!selected) return;
       navigator.clipboard.writeText(String(selected.value));
@@ -34,6 +36,7 @@ const TABLE_ACTIONS: TableActionDef[] = [
     keys: { ctrl: true, cmd: true, key: 'c' },
     label: 'Copy Field',
     showInContextMenu: true,
+    scope: 'results',
     execute: (selected) => {
       if (!selected) return;
       navigator.clipboard.writeText(`"${selected.colKey}": ${JSON.stringify(selected.value)}`);
@@ -44,6 +47,7 @@ const TABLE_ACTIONS: TableActionDef[] = [
     keys: { shift: true, alt: true, cmd: true, key: 'c' },
     label: 'Copy Field Path',
     showInContextMenu: true,
+    scope: 'results',
     execute: (selected) => {
       if (!selected) return;
       navigator.clipboard.writeText(selected.colKey);
@@ -54,6 +58,7 @@ const TABLE_ACTIONS: TableActionDef[] = [
     keys: { shift: true, cmd: true, key: 'c' },
     label: 'Copy Document',
     showInContextMenu: true,
+    scope: 'results',
     execute: (selected) => {
       if (!selected) return;
       navigator.clipboard.writeText(JSON.stringify(selected.doc, null, 2));
@@ -64,6 +69,7 @@ const TABLE_ACTIONS: TableActionDef[] = [
     keys: { key: 'F3' },
     label: 'View Full Record',
     showInContextMenu: true,
+    scope: 'results',
     execute: (selected, { onViewRecord }) => {
       if (!selected) return;
       onViewRecord?.(selected.doc);
@@ -74,6 +80,7 @@ const TABLE_ACTIONS: TableActionDef[] = [
     keys: { key: 'F4' },
     label: 'Edit Full Record',
     showInContextMenu: true,
+    scope: 'results',
     execute: (selected, { onEditRecord }) => {
       if (!selected) return;
       onEditRecord?.(selected.doc);
@@ -85,15 +92,16 @@ interface NavActionDef {
   id: string;
   keys: KeyCombo;
   label: string;
+  scope?: string;
   rowDelta: number;
   colDelta: number;
 }
 
 const NAV_ACTIONS: NavActionDef[] = [
-  { id: 'cell.navigateUp', keys: { key: 'ArrowUp' }, label: 'Navigate Up', rowDelta: -1, colDelta: 0 },
-  { id: 'cell.navigateDown', keys: { key: 'ArrowDown' }, label: 'Navigate Down', rowDelta: 1, colDelta: 0 },
-  { id: 'cell.navigateLeft', keys: { key: 'ArrowLeft' }, label: 'Navigate Left', rowDelta: 0, colDelta: -1 },
-  { id: 'cell.navigateRight', keys: { key: 'ArrowRight' }, label: 'Navigate Right', rowDelta: 0, colDelta: 1 },
+  { id: 'cell.navigateUp', keys: { key: 'ArrowUp' }, label: 'Navigate Up', scope: 'results', rowDelta: -1, colDelta: 0 },
+  { id: 'cell.navigateDown', keys: { key: 'ArrowDown' }, label: 'Navigate Down', scope: 'results', rowDelta: 1, colDelta: 0 },
+  { id: 'cell.navigateLeft', keys: { key: 'ArrowLeft' }, label: 'Navigate Left', scope: 'results', rowDelta: 0, colDelta: -1 },
+  { id: 'cell.navigateRight', keys: { key: 'ArrowRight' }, label: 'Navigate Right', scope: 'results', rowDelta: 0, colDelta: 1 },
 ];
 
 export function useTableActions(
@@ -113,6 +121,7 @@ export function useTableActions(
         keys: def.keys,
         label: def.label,
         showInContextMenu: def.showInContextMenu,
+        scope: def.scope,
         action: () =>
           def.execute(stateRef.current.selected, stateRef.current.handlers),
       })
@@ -124,6 +133,7 @@ export function useTableActions(
         keys: def.keys,
         label: def.label,
         showInContextMenu: false,
+        scope: def.scope,
         action: () => {
           const { selected: sel, docsRef: dRef, columnsRef: cRef, select: selectFn } = stateRef.current;
           if (!sel || !dRef || !cRef) return;

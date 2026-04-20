@@ -3,9 +3,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ResultsPanel } from '../components/results/ResultsPanel';
 import { useResultsStore } from '../store/results';
+import { keyboardService } from '../services/KeyboardService';
 
 beforeEach(() => {
   useResultsStore.setState({ byTab: {} });
+  keyboardService.setScope('results');
 });
 
 describe('ResultsPanel', () => {
