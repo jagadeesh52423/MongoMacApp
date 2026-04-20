@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:harness": "vitest run --config vitest.config.harness.ts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",

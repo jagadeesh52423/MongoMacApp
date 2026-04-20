@@ -113,6 +113,24 @@ function makeCursorProxy(cursor, countPromise) {
   return proxy;
 }
 
+// Recognized Node.js driver FindOptions keys — used to detect shell-style
+// raw-projection usage (find({}, {status: 1})) vs driver-style
+// (find({}, {projection: {status: 1}})).
+const FIND_OPTION_KEYS = new Set([
+  'projection', 'sort', 'limit', 'skip', 'hint', 'maxTimeMS',
+  'batchSize', 'readPreference', 'collation', 'comment', 'session',
+]);
+
+function normalizeFindOptions(options) {
+  if (!options || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).length === 0) {
+    return options;
+  }
+  for (const key of Object.keys(options)) {
+    if (FIND_OPTION_KEYS.has(key)) return options;
+  }
+  return { projection: options };
+}
+
 function makeCollectionProxy(col) {
   return new Proxy(col, {
     get(target, prop) {
@@ -133,7 +151,8 @@ function makeCollectionProxy(col) {
       // find/aggregate: paginated cursors
       if (prop === 'find') {
         return (filter = {}, options) => {
-          const rawCursor = val.call(target, filter, options);
+          const normalizedOptions = normalizeFindOptions(options);
+          const rawCursor = val.call(target, filter, normalizedOptions);
           const countPromise = target.countDocuments(filter).catch(() => -1);
           return makeCursorProxy(rawCursor, countPromise);
         };
