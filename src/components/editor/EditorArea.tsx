@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Panel, PanelGroup } from 'react-resizable-panels';
 import { useEditorStore, DEFAULT_PANEL_SIZES } from '../../store/editor';
 import { useConnectionsStore } from '../../store/connections';
@@ -12,6 +12,7 @@ import { SplitHandle } from '../shared/SplitHandle';
 import { useActivateScope } from '../../services/KeyboardService';
 import { useTabActions } from '../../hooks/useTabActions';
 import { newScriptTab } from '../../utils/newScriptTab';
+import { getStatementAtCursor } from '../../utils/statementDetection';
 
 export function EditorArea() {
   const {
@@ -42,23 +43,70 @@ export function EditorArea() {
   const activateResults = useActivateScope('results');
   useTabActions();
 
-  async function handleRun(page = 0, pageSize = activePageSize) {
+  const [cursorLines, setCursorLines] = useState<Record<string, number>>({});
+  const [selections, setSelections] = useState<Record<string, string | null>>({});
+  const lastRunContentRef = useRef<Record<string, string>>({});
+
+  const activeCursorLine = active ? (cursorLines[active.id] ?? 1) : 1;
+  const activeSelection = active ? (selections[active.id] ?? null) : null;
+
+  const currentStatement =
+    active && active.type === 'script' && !activeSelection
+      ? getStatementAtCursor(active.content, activeCursorLine)
+      : null;
+  const highlightRange = currentStatement
+    ? { startLine: currentStatement.startLine, endLine: currentStatement.endLine }
+    : null;
+
+  async function executeContent(content: string, page: number, pageSize: number) {
     if (!active || active.type !== 'script') return;
+    if (!content) return;
     const connId = active.connectionId ?? activeConnectionId;
     const db = active.database ?? activeDatabase;
     if (!connId || !db) return;
+    lastRunContentRef.current[active.id] = content;
     const runId = crypto.randomUUID();
-    console.log('[handleRun] tabId:', active.id, 'connId:', connId, 'db:', db, 'page:', page, 'pageSize:', pageSize, 'runId:', runId);
+    console.log('[executeContent] tabId:', active.id, 'connId:', connId, 'db:', db, 'page:', page, 'pageSize:', pageSize, 'runId:', runId);
     startRun(active.id, runId);
     try {
-      await runScript(active.id, connId, db, active.content, page, pageSize, runId);
+      await runScript(active.id, connId, db, content, page, pageSize, runId);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg === 'cancelled') return;
-      console.error('[handleRun] runScript failed:', msg);
+      console.error('[executeContent] runScript failed:', msg);
       setError(active.id, msg);
       finishRun(active.id, 0);
     }
+  }
+
+  function resolveSmartContent(): string {
+    if (!active || active.type !== 'script') return '';
+    const sel = selections[active.id];
+    if (sel && sel.length > 0) return sel;
+    const line = cursorLines[active.id] ?? 1;
+    const stmt = getStatementAtCursor(active.content, line);
+    return stmt ? stmt.text : active.content;
+  }
+
+  async function handleRun() {
+    await executeContent(resolveSmartContent(), 0, activePageSize);
+  }
+
+  async function handleRunScript() {
+    if (!active || active.type !== 'script') return;
+    await executeContent(active.content, 0, activePageSize);
+  }
+
+  async function handlePageChange(page: number, pageSize: number) {
+    if (!active) return;
+    const last = lastRunContentRef.current[active.id] ?? active.content;
+    await executeContent(last, page, pageSize);
+  }
+
+  async function handleDocUpdated() {
+    if (!active) return;
+    const last = lastRunContentRef.current[active.id] ?? active.content;
+    await executeContent(last, 0, activePageSize);
   }
 
   async function handleCancel() {
@@ -75,6 +123,16 @@ export function EditorArea() {
 
   function handleNewTab() {
     openTab(newScriptTab());
+  }
+
+  function handleCursorChange(line: number) {
+    if (!active) return;
+    setCursorLines((prev) => (prev[active.id] === line ? prev : { ...prev, [active.id]: line }));
+  }
+
+  function handleSelectionChange(text: string | null) {
+    if (!active) return;
+    setSelections((prev) => (prev[active.id] === text ? prev : { ...prev, [active.id]: text }));
   }
 
   const activeSizes = (active && panelSizes[active.id]) || DEFAULT_PANEL_SIZES;
@@ -143,7 +201,8 @@ export function EditorArea() {
             updateTab(active.id, { connectionId: id, database: undefined })
           }
           onDatabaseChange={(db) => updateTab(active.id, { database: db })}
-          onRun={() => handleRun(0)}
+          onRun={handleRun}
+          onRunScript={handleRunScript}
           onSave={handleSave}
           isRunning={isRunning}
         />
@@ -164,7 +223,11 @@ export function EditorArea() {
                 <ScriptEditor
                   value={active.content}
                   onChange={(v) => updateContent(active.id, v)}
-                  onRun={() => handleRun(0)}
+                  onRun={handleRun}
+                  onRunScript={handleRunScript}
+                  onCursorChange={handleCursorChange}
+                  onSelectionChange={handleSelectionChange}
+                  highlightRange={highlightRange}
                   collections={completions.map((c) => c.name)}
                 />
               </div>
@@ -175,12 +238,12 @@ export function EditorArea() {
                 <ResultsPanel
                   tabId={active.id}
                   pageSize={activePageSize}
-                  onPageChange={(page, pageSize) => handleRun(page, pageSize)}
+                  onPageChange={handlePageChange}
                   onPageSizeChange={(size) => setPageSizes((prev) => ({ ...prev, [active.id]: size }))}
                   connectionId={active.connectionId}
                   database={active.database}
                   collection={active.collection}
-                  onDocUpdated={() => handleRun(0, activePageSize)}
+                  onDocUpdated={handleDocUpdated}
                 />
               </div>
             </Panel>
