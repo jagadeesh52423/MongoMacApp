@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod connection;
 pub mod collection;
 pub mod document;

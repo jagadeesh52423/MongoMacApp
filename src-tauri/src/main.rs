@@ -57,6 +57,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::saved_script::touch_script,
             runner::executor::check_node_runner,
             runner::executor::install_node_runner,
+            commands::ai::set_ai_token,
+            commands::ai::get_ai_token,
+            commands::ai::delete_ai_token,
         ])
         .run(tauri::generate_context!())?;
     Ok(())
