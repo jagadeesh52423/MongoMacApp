@@ -199,6 +199,7 @@ export function ShortcutsSection() {
                 <tr>
                   <th style={thStyle}>Action</th>
                   <th style={{ ...thStyle, width: 220 }}>Binding</th>
+                  <th style={{ ...thStyle, width: 36 }} aria-label="Reset" />
                 </tr>
               </thead>
               <tbody>
@@ -206,16 +207,17 @@ export function ShortcutsSection() {
                   const combo = effectiveCombo(s, shortcutOverrides);
                   const isListening = listeningId === s.id;
                   const hasError = errorId === s.id;
-                  const isOverridden = !!shortcutOverrides[s.id];
+                  const hasOverride = !!shortcutOverrides[s.id];
                   return (
                     <tr
                       key={s.id}
                       onContextMenu={(e) => handleRowContextMenu(e, s.id)}
                       style={rowStyle}
+                      className="shortcut-row"
                     >
                       <td style={tdStyle}>
                         <span>{s.label}</span>
-                        {isOverridden && (
+                        {hasOverride && (
                           <span style={overriddenBadgeStyle} title="Customized">
                             custom
                           </span>
@@ -240,6 +242,19 @@ export function ShortcutsSection() {
                         {hasError && errorMsg && (
                           <div style={errorStyle}>{errorMsg}</div>
                         )}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          className="shortcut-row-reset"
+                          onClick={() => handleReset(s.id)}
+                          disabled={!hasOverride}
+                          title="Reset to default"
+                          aria-label="Reset to default"
+                          style={resetRowButtonStyle(!hasOverride)}
+                        >
+                          <ResetIcon />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -276,7 +291,32 @@ const pulseKeyframes = `
   50% { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(0, 237, 100, 0); }
 }
 .shortcut-chip-listening { animation: shortcutPulse 1.2s ease-in-out infinite; }
+.shortcut-row .shortcut-row-reset { opacity: 0; transition: opacity 120ms ease; }
+.shortcut-row:hover .shortcut-row-reset { opacity: 1; }
+.shortcut-row-reset:focus-visible { opacity: 1; outline: 1px solid var(--accent); outline-offset: 1px; }
+.shortcut-row-reset:disabled { opacity: 0; pointer-events: none; }
+.shortcut-row:hover .shortcut-row-reset:disabled { opacity: 0.5; pointer-events: none; cursor: not-allowed; }
 `;
+
+function ResetIcon() {
+  // inline SVG (matches lucide-react's RotateCcw look) — avoids adding an icon dependency
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 3v5h5" />
+    </svg>
+  );
+}
 
 const containerStyle: CSSProperties = {
   padding: 20,
@@ -373,6 +413,22 @@ function chipStyle(isListening: boolean, hasError: boolean): CSSProperties {
     minWidth: 80,
     textAlign: 'center',
     color: isListening ? 'var(--accent)' : 'inherit',
+  };
+}
+
+function resetRowButtonStyle(disabled: boolean): CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 22,
+    height: 22,
+    padding: 0,
+    border: 'none',
+    background: 'transparent',
+    color: 'var(--fg-dim)',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    borderRadius: 3,
   };
 }
 
