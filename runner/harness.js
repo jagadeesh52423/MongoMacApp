@@ -72,12 +72,13 @@ function transformScript(script) {
 function makeCursorProxy(cursor, countPromise) {
   const modifiers = ['sort', 'limit', 'skip', 'project', 'hint', 'maxTimeMS', 'batchSize'];
 
+  let userLimit = null;
+  let userSkip = null;
   let promise;
   function materialize() {
     if (!promise) {
-      if (countPromise !== undefined) {
-        // Apply pagination after all user chaining is done
-        // User-chained .limit()/.skip() are overridden here — documented known limitation
+      if (countPromise !== undefined && userLimit === null && userSkip === null) {
+        // Only apply pagination when the user did not explicitly chain .limit() or .skip()
         cursor = cursor.skip(PAGE * PAGE_SIZE).limit(PAGE_SIZE);
         promise = Promise.all([cursor.toArray(), countPromise]).then(([docs, total]) => {
           emitGroup(docs);
@@ -104,6 +105,8 @@ function makeCursorProxy(cursor, countPromise) {
   modifiers.forEach((m) => {
     if (typeof cursor[m] === 'function') {
       proxy[m] = (...args) => {
+        if (m === 'limit') userLimit = args[0];
+        if (m === 'skip') userSkip = args[0];
         cursor = cursor[m](...args);
         return proxy;
       };
