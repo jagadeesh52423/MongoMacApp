@@ -2214,6 +2214,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "mongo-lens"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "futures-util",
+ "mongodb",
+ "rusqlite",
+ "security-framework",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-store",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "mongocrypt"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2287,28 +2309,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "mongomacapp"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "futures-util",
- "mongodb",
- "rusqlite",
- "security-framework",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-store",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "uuid",
 ]
 
 [[package]]
