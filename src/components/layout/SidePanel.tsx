@@ -7,7 +7,6 @@ interface Props {
 
 const titles: Record<PanelKey, string> = {
   connections: 'Connections',
-  collections: 'Collections',
   saved: 'Saved Scripts',
 };
 
