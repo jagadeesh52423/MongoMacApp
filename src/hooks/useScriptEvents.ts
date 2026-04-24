@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { useResultsStore } from '../store/results';
 import type { ScriptEvent } from '../types';
+import { useLogger } from '../services/logger';
 
 export function useScriptEvents() {
+  const log = useLogger('hooks.useScriptEvents');
   const { appendGroup, setError, finishRun, setPagination } = useResultsStore();
 
   useEffect(() => {
@@ -14,7 +16,8 @@ export function useScriptEvents() {
       const currentRunId = useResultsStore.getState().byTab[p.tabId]?.runId;
       if (p.runId && p.runId !== currentRunId) return;
 
-      console.log('[script-event]', p.kind, p.tabId, p.error ?? '');
+      const child = log.child({ runId: p.runId, tabId: p.tabId });
+      child.debug('script-event', { kind: p.kind, error: p.error });
       if (p.kind === 'group' && p.groupIndex !== undefined && p.docs !== undefined) {
         appendGroup(p.tabId, {
           groupIndex: p.groupIndex,
@@ -38,5 +41,5 @@ export function useScriptEvents() {
       cancelled = true;
       unsub?.();
     };
-  }, [appendGroup, setError, finishRun, setPagination]);
+  }, [appendGroup, setError, finishRun, setPagination, log]);
 }

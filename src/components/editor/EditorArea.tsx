@@ -14,6 +14,7 @@ import { useTabActions } from '../../hooks/useTabActions';
 import { newScriptTab } from '../../utils/newScriptTab';
 import { getStatementAtCursor } from '../../utils/statementDetection';
 import { getExecutionMode, getExecutionModes } from '../../execution-modes';
+import { useLogger } from '../../services/logger';
 
 export function EditorArea() {
   const {
@@ -42,6 +43,7 @@ export function EditorArea() {
   const isRunning = useResultsStore((s) => (active ? !!s.byTab[active.id]?.isRunning : false));
   const activateEditor = useActivateScope('editor');
   const activateResults = useActivateScope('results');
+  const log = useLogger('components.EditorArea');
   useTabActions();
 
   const [cursorLines, setCursorLines] = useState<Record<string, number>>({});
@@ -67,14 +69,21 @@ export function EditorArea() {
     if (!connId || !db) return;
     lastRunContentRef.current[active.id] = content;
     const runId = crypto.randomUUID();
-    console.log('[executeContent] tabId:', active.id, 'connId:', connId, 'db:', db, 'page:', page, 'pageSize:', pageSize, 'runId:', runId);
+    log.debug('execute requested', {
+      runId,
+      tabId: active.id,
+      connId,
+      db,
+      page,
+      pageSize,
+    });
     startRun(active.id, runId);
     try {
       await runScript(active.id, connId, db, content, page, pageSize, runId);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg === 'cancelled') return;
-      console.error('[executeContent] runScript failed:', msg);
+      log.error('runScript failed', { runId, tabId: active.id, err: msg });
       setError(active.id, msg);
       finishRun(active.id, 0);
     }

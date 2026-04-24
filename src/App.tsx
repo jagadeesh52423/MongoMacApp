@@ -14,11 +14,13 @@ import { useScriptEvents } from './hooks/useScriptEvents';
 import { checkNodeRunner, installNodeRunner } from './ipc';
 import { keyboardService } from './services/KeyboardService';
 import { DEFAULT_SHORTCUTS } from './shortcuts/defaults';
+import { useLogger } from './services/logger';
 
 const openSettingsDef = DEFAULT_SHORTCUTS.find((d) => d.id === 'open-settings');
 if (openSettingsDef) keyboardService.defineShortcut(openSettingsDef);
 
 export default function App() {
+  const log = useLogger('components.App');
   useScriptEvents();
   const sidePanelRef = useRef<ImperativePanelHandle>(null);
 
@@ -34,16 +36,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    checkNodeRunner().then((status) => {
-      console.log('[runner] check:', status);
-      if (!status.ready) {
-        console.log('[runner] not ready, installing...');
-        installNodeRunner()
-          .then(() => console.log('[runner] install complete'))
-          .catch((e) => console.error('[runner] install failed:', e));
-      }
-    }).catch((e) => console.error('[runner] check failed:', e));
-  }, []);
+    checkNodeRunner()
+      .then((status) => {
+        log.info('runner check', { status });
+        if (!status.ready) {
+          log.info('runner not ready; installing');
+          installNodeRunner()
+            .then(() => log.info('runner install complete'))
+            .catch((e) => log.error('runner install failed', { err: String(e) }));
+        }
+      })
+      .catch((e) => log.error('runner check failed', { err: String(e) }));
+  }, [log]);
   const [panel, setPanel] = useState<PanelKey>('connections');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
