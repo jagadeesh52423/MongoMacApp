@@ -29,10 +29,37 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let base = dirs_dir()?;
             fs::create_dir_all(&base)
                 .map_err(|e| format!("failed to create app dir {}: {}", base.display(), e))?;
+            let logs_dir = base.join("logs");
+            fs::create_dir_all(&logs_dir)
+                .map_err(|e| format!("failed to create logs dir {}: {}", logs_dir.display(), e))?;
+
+            let level = std::env::var("MONGOMACAPP_LOG_LEVEL")
+                .ok()
+                .map(|s| logger::Level::from_str(&s))
+                .unwrap_or(logger::Level::Info);
+
+            let tracing_logger = logger::tracing_impl::TracingLogger::init(&logs_dir, level)
+                .map_err(|e| format!("failed to init logger: {e}"))?;
+
             let db_path = base.join("mongomacapp.sqlite");
             db::open(&db_path)
                 .map_err(|e| format!("failed to open/migrate sqlite at {}: {}", db_path.display(), e))?;
-            app.manage(AppState::new(db_path));
+            app.manage(AppState::new(
+                db_path,
+                logs_dir.clone(),
+                tracing_logger.clone(),
+            ));
+
+            // Retention sweep: once at boot, then every 24h.
+            let sweep_dir = logs_dir.clone();
+            logger::retention::sweep(&sweep_dir, 7);
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_secs(86_400));
+                logger::retention::sweep(&sweep_dir, 7);
+            });
+
+            use crate::logger::{LogCtx, Logger as _};
+            tracing_logger.info("app boot", LogCtx::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -56,6 +83,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::saved_script::update_script,
             commands::saved_script::delete_script,
             commands::saved_script::touch_script,
+            commands::logging::log_write,
             runner::executor::check_node_runner,
             runner::executor::install_node_runner,
         ])
