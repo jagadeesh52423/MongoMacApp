@@ -1,4 +1,6 @@
 import { createContext, createElement, useCallback, useContext, useMemo, type ReactNode } from 'react';
+import type { Logger } from './logger';
+import { NoopLogger } from './logger/NoopLogger';
 
 export interface KeyCombo {
   cmd?: boolean;
@@ -69,6 +71,11 @@ export class KeyboardService {
   private _defaults = new Map<string, KeyCombo>();
   private _pendingOverrides: Record<string, string> = {};
   private _activeScope = '';
+  private logger: Logger = new NoopLogger();
+
+  setLogger(logger: Logger): void {
+    this.logger = logger;
+  }
 
   setScope(scope: string): void {
     this._activeScope = scope;
@@ -84,6 +91,7 @@ export class KeyboardService {
     const pending = this._pendingOverrides[def.id];
     const finalDef = pending ? { ...def, keys: deserializeKeyCombo(pending) } : def;
     this.definitions.set(def.id, finalDef);
+    this.logger.debug('shortcut registered', { id: def.id, scope: def.scope });
   }
 
   register(id: string, handler: () => void): () => void {
