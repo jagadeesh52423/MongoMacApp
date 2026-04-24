@@ -83,7 +83,7 @@ pub fn create_connection(
     })?;
     if let Some(pw) = input.password {
         if !pw.is_empty() {
-            keychain::set_password(&id, &pw)?;
+            keychain::set_password(&id, &pw, log.as_ref())?;
         }
     }
     Ok(rec)
@@ -133,9 +133,9 @@ pub fn update_connection(
     })?;
     if let Some(pw) = input.password {
         if pw.is_empty() {
-            keychain::delete_password(&id)?;
+            keychain::delete_password(&id, log.as_ref())?;
         } else {
-            keychain::set_password(&id, &pw)?;
+            keychain::set_password(&id, &pw, log.as_ref())?;
         }
     }
     Ok(rec)
@@ -156,7 +156,7 @@ pub fn delete_connection(state: State<'_, AppState>, id: String) -> Result<(), S
         log.error("delete failed", logctx! { "err" => e.to_string() });
         e.to_string()
     })?;
-    keychain::delete_password(&id)?;
+    keychain::delete_password(&id, log.as_ref())?;
     let mut clients = state.mongo_clients.lock().unwrap();
     clients.remove(&id);
     Ok(())
@@ -186,9 +186,9 @@ pub async fn test_connection(
             "connection not found".to_string()
         })?;
     drop(conn);
-    let pw = keychain::get_password(&id)?;
+    let pw = keychain::get_password(&id, log.as_ref())?;
     let uri = mongo::build_uri(&rec, pw.as_deref());
-    match mongo::ping(&uri).await {
+    match mongo::ping(&uri, log.as_ref()).await {
         Ok(()) => {
             log.info("test_connection ok", logctx! {});
             Ok(TestResult { ok: true, error: None })
@@ -224,9 +224,9 @@ pub async fn connect_connection(
             "connection not found".to_string()
         })?;
     drop(conn);
-    let pw = keychain::get_password(&id)?;
+    let pw = keychain::get_password(&id, log.as_ref())?;
     let uri = mongo::build_uri(&rec, pw.as_deref());
-    let client = mongo::client_for(&uri).await?;
+    let client = mongo::client_for(&uri, log.as_ref()).await?;
     client
         .database("admin")
         .run_command(mongodb::bson::doc! {"ping": 1})

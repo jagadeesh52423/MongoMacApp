@@ -1,4 +1,6 @@
 use crate::db::connections::ConnectionRecord;
+use crate::logctx;
+use crate::logger::Logger;
 use crate::state::AppState;
 use tauri::State;
 
@@ -34,22 +36,41 @@ fn urlencoding_encode(s: &str) -> String {
     out
 }
 
-pub async fn ping(uri: &str) -> Result<(), String> {
+pub async fn ping(uri: &str, log: &dyn Logger) -> Result<(), String> {
     use mongodb::{options::ClientOptions, Client};
-    let opts = ClientOptions::parse(uri).await.map_err(|e| e.to_string())?;
-    let client = Client::with_options(opts).map_err(|e| e.to_string())?;
+    // `uri` is redacted automatically by the logger's redact_ctx — never log raw URIs.
+    log.info("mongo ping", logctx! { "uri" => uri });
+    let opts = ClientOptions::parse(uri).await.map_err(|e| {
+        log.error("mongo parse failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
+    let client = Client::with_options(opts).map_err(|e| {
+        log.error("mongo client build failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
     client
         .database("admin")
         .run_command(mongodb::bson::doc! {"ping": 1})
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            log.error("mongo ping failed", logctx! { "err" => e.to_string() });
+            e.to_string()
+        })?;
+    log.info("mongo ping ok", logctx! {});
     Ok(())
 }
 
-pub async fn client_for(uri: &str) -> Result<mongodb::Client, String> {
+pub async fn client_for(uri: &str, log: &dyn Logger) -> Result<mongodb::Client, String> {
     use mongodb::{options::ClientOptions, Client};
-    let opts = ClientOptions::parse(uri).await.map_err(|e| e.to_string())?;
-    Client::with_options(opts).map_err(|e| e.to_string())
+    log.info("mongo connect", logctx! { "uri" => uri });
+    let opts = ClientOptions::parse(uri).await.map_err(|e| {
+        log.error("mongo parse failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
+    Client::with_options(opts).map_err(|e| {
+        log.error("mongo client build failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })
 }
 
 pub fn active_client(state: &State<'_, AppState>, id: &str) -> Result<mongodb::Client, String> {

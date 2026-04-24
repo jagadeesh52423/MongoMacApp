@@ -96,7 +96,7 @@ pub async fn run_script(
             "connection not found".to_string()
         })?;
     drop(conn);
-    let pw = keychain::get_password(&connection_id)?;
+    let pw = keychain::get_password(&connection_id, log.as_ref())?;
     let uri = mongo::build_uri(&rec, pw.as_deref());
     log.debug("resolved host", logctx! { "host" => rec.host.clone() });
 
