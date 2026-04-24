@@ -16,6 +16,13 @@ const logger = createLogger({
   level: process.env.MONGOMACAPP_LOG_LEVEL || 'info',
 });
 
+// Component-scoped child loggers — created once at module init so each query
+// doesn't allocate a Logger. The `logger` field on each record stays
+// filterable (e.g. grep '"logger":"harness.cursor"').
+const transformLogger = logger.child({ logger: 'harness.transform' });
+const cursorLogger = logger.child({ logger: 'harness.cursor' });
+const emitLogger = logger.child({ logger: 'harness.emit' });
+
 logger.info('harness start', {
   dbName,
   scriptPath,
@@ -41,7 +48,7 @@ function emitPagination(total, page, pageSize) {
   );
 }
 
-function emitGroup(docs, log = logger) {
+function emitGroup(docs, log = emitLogger) {
   const arr = Array.isArray(docs) ? docs : [docs];
   const safe = JSON.parse(JSON.stringify(arr, (_k, v) => {
     if (typeof v === 'bigint') return v.toString();
@@ -57,7 +64,7 @@ function emitGroup(docs, log = logger) {
 
 // Transform Mongo shell-style script: add await before db. expressions so the
 // user never needs to write await in their queries (Studio 3T / mongosh style).
-function transformScript(script, log = logger) {
+function transformScript(script, log = transformLogger) {
   if (log) log.debug('transform', { lines: script.split('\n').length });
   return script
     .split('\n')
@@ -93,7 +100,7 @@ function transformScript(script, log = logger) {
 // Wrap a Mongo cursor so users can chain modifiers (sort, limit, skip, ...)
 // and also await/then the cursor directly to materialize results. emitGroup is
 // invoked exactly once when the cursor is materialized.
-function makeCursorProxy(cursor, countPromise, log = logger) {
+function makeCursorProxy(cursor, countPromise, log = cursorLogger) {
   const modifiers = ['sort', 'limit', 'skip', 'project', 'hint', 'maxTimeMS', 'batchSize'];
 
   let userLimit = null;
@@ -253,10 +260,10 @@ async function run() {
   process.stderr.write(JSON.stringify({ __debug: `[harness] connected, running script` }) + '\n');
   const db = wrapDb(client.db(dbName));
   try {
-    const userScript = transformScript(rawScript, logger);
+    const userScript = transformScript(rawScript, transformLogger);
     const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
     const fn = new AsyncFn('db', 'print', userScript);
-    const print = (v) => emitGroup(v, logger);
+    const print = (v) => emitGroup(v, emitLogger);
     await fn(db, print);
     logger.info('script complete', { groups: groupIndex });
     process.stderr.write(JSON.stringify({ __debug: `[harness] script complete, groups=${groupIndex}` }) + '\n');
