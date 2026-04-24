@@ -3,6 +3,7 @@
 mod commands;
 mod db;
 mod keychain;
+mod logger;
 mod mongo;
 mod runner;
 mod state;
