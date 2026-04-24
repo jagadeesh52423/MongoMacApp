@@ -1,5 +1,7 @@
 use crate::db;
 use crate::keychain;
+use crate::logctx;
+use crate::logger::Logger as _;
 use crate::mongo;
 use crate::runner::executor::spawn_script;
 use crate::state::AppState;
@@ -36,6 +38,11 @@ pub struct ScriptEvent {
 
 #[tauri::command]
 pub fn cancel_script(state: State<'_, AppState>, tab_id: String) -> Result<(), String> {
+    let log = state.logger.child(logctx! {
+        "logger" => "commands.script",
+        "tabId" => tab_id.clone(),
+    });
+    log.info("cancel_script", logctx! {});
     let mut scripts = state.active_scripts.lock().unwrap();
     if let Some(flag) = scripts.remove(&tab_id) {
         flag.store(true, Ordering::Relaxed);
@@ -55,28 +62,56 @@ pub async fn run_script(
     page_size: Option<u32>,
     run_id: Option<String>,
 ) -> Result<(), String> {
-    println!("[run_script] tab={tab_id} connection_id={connection_id} db={database}");
-    let conn = state.open_db().map_err(|e| e.to_string())?;
+    let log = {
+        let mut b = logctx! {
+            "logger" => "commands.script",
+            "connId" => connection_id.clone(),
+            "tabId" => tab_id.clone(),
+        };
+        if let Some(r) = run_id.as_ref() {
+            b.insert("runId".into(), serde_json::json!(r.clone()));
+        }
+        state.logger.child(b)
+    };
+    let page = page.unwrap_or(0);
+    let page_size = page_size.unwrap_or(50);
+    log.info("run_script start", logctx! {
+        "db" => database.clone(),
+        "page" => page,
+        "pageSize" => page_size,
+        "script" => script.clone(),          // redacted inside the logger
+    });
+
+    let conn = state.open_db().map_err(|e| {
+        log.error("open_db failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
     let rec = db::connections::get(&conn, &connection_id)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "connection not found".to_string())?;
+        .map_err(|e| {
+            log.error("connection lookup failed", logctx! { "err" => e.to_string() });
+            e.to_string()
+        })?
+        .ok_or_else(|| {
+            log.error("connection not found", logctx! {});
+            "connection not found".to_string()
+        })?;
     drop(conn);
     let pw = keychain::get_password(&connection_id)?;
     let uri = mongo::build_uri(&rec, pw.as_deref());
-    println!("[run_script] uri host={:?} db={database}", rec.host);
+    log.debug("resolved host", logctx! { "host" => rec.host.clone() });
 
     let tmp_dir = std::env::temp_dir();
     let script_path = tmp_dir.join(format!("mongomacapp-{}.js", uuid::Uuid::new_v4()));
-    std::fs::write(&script_path, &script).map_err(|e| e.to_string())?;
-    println!("[run_script] script written to {:?}", script_path);
+    std::fs::write(&script_path, &script).map_err(|e| {
+        log.error("write tmp script failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
+    log.debug("script written", logctx! { "path" => script_path.display().to_string() });
 
     let tab_id_arc: Arc<String> = Arc::new(tab_id.clone());
     let run_id_arc: Arc<Option<String>> = Arc::new(run_id);
     let app_handle = app.clone();
     let start = Instant::now();
-
-    let page = page.unwrap_or(0);
-    let page_size = page_size.unwrap_or(50);
 
     // Cancel any previously running script on this tab, then register the new flag.
     let cancel_flag = Arc::new(AtomicBool::new(false));
@@ -92,9 +127,15 @@ pub async fn run_script(
     // even if spawn_script or stdout/stderr take fail with `?`.
     let result: Result<(), String> = async {
         let mut child = spawn_script(&uri, &database, &script_path, page, page_size)?;
-        println!("[run_script] child spawned pid={:?}", child.id());
-        let stdout = child.stdout.take().ok_or_else(|| "no stdout".to_string())?;
-        let stderr = child.stderr.take().ok_or_else(|| "no stderr".to_string())?;
+        log.info("child spawned", logctx! { "pid" => child.id() });
+        let stdout = child.stdout.take().ok_or_else(|| {
+            log.error("no stdout", logctx! {});
+            "no stdout".to_string()
+        })?;
+        let stderr = child.stderr.take().ok_or_else(|| {
+            log.error("no stderr", logctx! {});
+            "no stderr".to_string()
+        })?;
 
         let stdout_handle = {
             let ah = app_handle.clone();
@@ -151,13 +192,14 @@ pub async fn run_script(
             let ah = app_handle.clone();
             let tab = tab_id_arc.clone();
             let rid = run_id_arc.clone();
+            let err_log = log.child(logctx! {});
             std::thread::spawn(move || {
                 let reader = BufReader::new(stderr);
                 for line in reader.lines().flatten() {
                     let parsed = serde_json::from_str::<serde_json::Value>(&line).ok();
-                    // __debug lines are diagnostic only — log to terminal, not UI
+                    // __debug lines are diagnostic only — log to backend.log, not UI
                     if let Some(msg) = parsed.as_ref().and_then(|v| v.get("__debug")).and_then(|v| v.as_str()) {
-                        println!("{msg}");
+                        err_log.debug(msg, logctx! {});
                         continue;
                     }
                     let err = parsed
@@ -201,8 +243,11 @@ pub async fn run_script(
             Ok(Ok(status)) => {
                 let _ = stdout_handle.join();
                 let _ = stderr_handle.join();
-                println!("[run_script] done, exit_success={}", status.success());
                 let elapsed = start.elapsed().as_millis();
+                log.info("run_script done", logctx! {
+                    "ok" => status.success(),
+                    "elapsedMs" => elapsed.to_string(),
+                });
                 let done = ScriptEvent {
                     tab_id: (*tab_id_arc).clone(),
                     kind: "done".into(),
@@ -220,11 +265,11 @@ pub async fn run_script(
                 let _ = stdout_handle.join();
                 let _ = stderr_handle.join();
                 if e.kind() == std::io::ErrorKind::Interrupted {
-                    println!("[run_script] cancelled by user");
+                    log.info("run_script cancelled", logctx! {});
                     // Intentional cancel — frontend handles via handleCancel.
                     Ok(())
                 } else {
-                    println!("[run_script] wait failed: {e}");
+                    log.error("wait failed", logctx! { "err" => e.to_string() });
                     Err(e.to_string())
                 }
             }
@@ -235,7 +280,9 @@ pub async fn run_script(
                 let _ = child.wait();
                 let _ = stdout_handle.join();
                 let _ = stderr_handle.join();
-                println!("[run_script] timed out after {SCRIPT_TIMEOUT_SECS}s, killed child");
+                log.warn("run_script timed out", logctx! {
+                    "timeoutSecs" => SCRIPT_TIMEOUT_SECS,
+                });
                 let evt = ScriptEvent {
                     tab_id: (*tab_id_arc).clone(),
                     kind: "error".into(),

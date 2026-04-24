@@ -1,5 +1,7 @@
 use crate::db::{self, connections::ConnectionRecord};
 use crate::keychain;
+use crate::logctx;
+use crate::logger::Logger as _;
 use crate::mongo;
 use crate::state::AppState;
 use serde::{Deserialize, Serialize};
@@ -34,8 +36,16 @@ fn now_iso() -> String {
 
 #[tauri::command]
 pub fn list_connections(state: State<'_, AppState>) -> Result<Vec<ConnectionRecord>, String> {
-    let conn = state.open_db().map_err(|e| e.to_string())?;
-    db::connections::list(&conn).map_err(|e| e.to_string())
+    let log = state.logger.child(logctx! { "logger" => "commands.connection" });
+    log.info("list_connections", logctx! {});
+    let conn = state.open_db().map_err(|e| {
+        log.error("open_db failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
+    db::connections::list(&conn).map_err(|e| {
+        log.error("list failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })
 }
 
 #[tauri::command]
@@ -43,7 +53,12 @@ pub fn create_connection(
     state: State<'_, AppState>,
     input: ConnectionInput,
 ) -> Result<ConnectionRecord, String> {
+    let log = state.logger.child(logctx! { "logger" => "commands.connection" });
     let id = uuid::Uuid::new_v4().to_string();
+    log.info("create_connection", logctx! {
+        "connId" => id.clone(),
+        "name" => input.name.clone(),
+    });
     let rec = ConnectionRecord {
         id: id.clone(),
         name: input.name,
@@ -58,8 +73,14 @@ pub fn create_connection(
         ssh_key_path: input.ssh_key_path,
         created_at: now_iso(),
     };
-    let conn = state.open_db().map_err(|e| e.to_string())?;
-    db::connections::insert(&conn, &rec).map_err(|e| e.to_string())?;
+    let conn = state.open_db().map_err(|e| {
+        log.error("open_db failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
+    db::connections::insert(&conn, &rec).map_err(|e| {
+        log.error("insert failed", logctx! { "connId" => id.clone(), "err" => e.to_string() });
+        e.to_string()
+    })?;
     if let Some(pw) = input.password {
         if !pw.is_empty() {
             keychain::set_password(&id, &pw)?;
@@ -74,10 +95,24 @@ pub fn update_connection(
     id: String,
     input: ConnectionInput,
 ) -> Result<ConnectionRecord, String> {
-    let conn = state.open_db().map_err(|e| e.to_string())?;
+    let log = state.logger.child(logctx! {
+        "logger" => "commands.connection",
+        "connId" => id.clone(),
+    });
+    log.info("update_connection", logctx! { "name" => input.name.clone() });
+    let conn = state.open_db().map_err(|e| {
+        log.error("open_db failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
     let existing = db::connections::get(&conn, &id)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "connection not found".to_string())?;
+        .map_err(|e| {
+            log.error("get failed", logctx! { "err" => e.to_string() });
+            e.to_string()
+        })?
+        .ok_or_else(|| {
+            log.error("connection not found", logctx! {});
+            "connection not found".to_string()
+        })?;
     let rec = ConnectionRecord {
         id: id.clone(),
         name: input.name,
@@ -92,7 +127,10 @@ pub fn update_connection(
         ssh_key_path: input.ssh_key_path,
         created_at: existing.created_at,
     };
-    db::connections::update(&conn, &rec).map_err(|e| e.to_string())?;
+    db::connections::update(&conn, &rec).map_err(|e| {
+        log.error("update failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
     if let Some(pw) = input.password {
         if pw.is_empty() {
             keychain::delete_password(&id)?;
@@ -105,8 +143,19 @@ pub fn update_connection(
 
 #[tauri::command]
 pub fn delete_connection(state: State<'_, AppState>, id: String) -> Result<(), String> {
-    let conn = state.open_db().map_err(|e| e.to_string())?;
-    db::connections::delete(&conn, &id).map_err(|e| e.to_string())?;
+    let log = state.logger.child(logctx! {
+        "logger" => "commands.connection",
+        "connId" => id.clone(),
+    });
+    log.info("delete_connection", logctx! {});
+    let conn = state.open_db().map_err(|e| {
+        log.error("open_db failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
+    db::connections::delete(&conn, &id).map_err(|e| {
+        log.error("delete failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
     keychain::delete_password(&id)?;
     let mut clients = state.mongo_clients.lock().unwrap();
     clients.remove(&id);
@@ -118,16 +167,36 @@ pub async fn test_connection(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<TestResult, String> {
-    let conn = state.open_db().map_err(|e| e.to_string())?;
+    let log = state.logger.child(logctx! {
+        "logger" => "commands.connection",
+        "connId" => id.clone(),
+    });
+    log.info("test_connection", logctx! {});
+    let conn = state.open_db().map_err(|e| {
+        log.error("open_db failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
     let rec = db::connections::get(&conn, &id)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "connection not found".to_string())?;
+        .map_err(|e| {
+            log.error("get failed", logctx! { "err" => e.to_string() });
+            e.to_string()
+        })?
+        .ok_or_else(|| {
+            log.error("connection not found", logctx! {});
+            "connection not found".to_string()
+        })?;
     drop(conn);
     let pw = keychain::get_password(&id)?;
     let uri = mongo::build_uri(&rec, pw.as_deref());
     match mongo::ping(&uri).await {
-        Ok(()) => Ok(TestResult { ok: true, error: None }),
-        Err(e) => Ok(TestResult { ok: false, error: Some(e) }),
+        Ok(()) => {
+            log.info("test_connection ok", logctx! {});
+            Ok(TestResult { ok: true, error: None })
+        }
+        Err(e) => {
+            log.warn("test_connection failed", logctx! { "err" => e.clone() });
+            Ok(TestResult { ok: false, error: Some(e) })
+        }
     }
 }
 
@@ -136,10 +205,24 @@ pub async fn connect_connection(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<(), String> {
-    let conn = state.open_db().map_err(|e| e.to_string())?;
+    let log = state.logger.child(logctx! {
+        "logger" => "commands.connection",
+        "connId" => id.clone(),
+    });
+    log.info("connect_connection", logctx! {});
+    let conn = state.open_db().map_err(|e| {
+        log.error("open_db failed", logctx! { "err" => e.to_string() });
+        e.to_string()
+    })?;
     let rec = db::connections::get(&conn, &id)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "connection not found".to_string())?;
+        .map_err(|e| {
+            log.error("get failed", logctx! { "err" => e.to_string() });
+            e.to_string()
+        })?
+        .ok_or_else(|| {
+            log.error("connection not found", logctx! {});
+            "connection not found".to_string()
+        })?;
     drop(conn);
     let pw = keychain::get_password(&id)?;
     let uri = mongo::build_uri(&rec, pw.as_deref());
@@ -148,13 +231,22 @@ pub async fn connect_connection(
         .database("admin")
         .run_command(mongodb::bson::doc! {"ping": 1})
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            log.error("ping failed", logctx! { "err" => e.to_string() });
+            e.to_string()
+        })?;
     state.mongo_clients.lock().unwrap().insert(id, client);
+    log.info("connect_connection ok", logctx! {});
     Ok(())
 }
 
 #[tauri::command]
 pub fn disconnect_connection(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    let log = state.logger.child(logctx! {
+        "logger" => "commands.connection",
+        "connId" => id.clone(),
+    });
+    log.info("disconnect_connection", logctx! {});
     state.mongo_clients.lock().unwrap().remove(&id);
     Ok(())
 }
