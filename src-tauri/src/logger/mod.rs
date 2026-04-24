@@ -47,7 +47,7 @@ pub struct LogRecord {
     pub level: Level,
     pub layer: Layer,
     pub logger: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "runId", skip_serializing_if = "Option::is_none")]
     pub run_id: Option<String>,
     pub msg: String,
     pub ctx: LogCtx,
