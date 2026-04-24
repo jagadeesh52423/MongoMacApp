@@ -1,5 +1,6 @@
 const { MongoClient } = require('mongodb');
 const fs = require('fs');
+const { createLogger } = require('./logger');
 
 const uri = process.env.MONGO_URI;
 if (!uri) {
@@ -8,6 +9,26 @@ if (!uri) {
 }
 const [dbName, scriptPath] = process.argv.slice(2);
 const rawScript = fs.readFileSync(scriptPath, 'utf8');
+
+const logger = createLogger({
+  runId: process.env.MONGOMACAPP_RUN_ID || 'nil',
+  logsDir: process.env.MONGOMACAPP_LOGS_DIR || null,
+  level: process.env.MONGOMACAPP_LOG_LEVEL || 'info',
+});
+
+logger.info('harness start', {
+  dbName,
+  scriptPath,
+  page: process.env.MONGO_PAGE,
+  pageSize: process.env.MONGO_PAGE_SIZE,
+});
+
+const __startedAt = Date.now();
+process.on('exit', (code) => {
+  try {
+    logger.info('harness end', { code, durationMs: Date.now() - __startedAt });
+  } catch (_e) {}
+});
 
 let groupIndex = 0;
 
