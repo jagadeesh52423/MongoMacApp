@@ -3,6 +3,7 @@ import { getSections } from './registry';
 import { useSettingsStore } from '../store/settings';
 import './sections/ShortcutsSection';
 import './sections/ThemeSection';
+import './sections/AISettingsSection';
 
 interface Props {
   onClose: () => void;

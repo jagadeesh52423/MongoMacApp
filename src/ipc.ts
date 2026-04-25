@@ -124,3 +124,18 @@ export async function checkNodeRunner(): Promise<{ ready: boolean; nodeVersion?:
 export async function installNodeRunner(): Promise<void> {
   return invoke('install_node_runner');
 }
+
+// --- AI token (stored in OS keychain via Rust command) ---
+
+export async function setAiToken(token: string): Promise<void> {
+  return invoke('set_ai_token', { token });
+}
+
+export async function getAiToken(): Promise<string | null> {
+  // Rust returns Option<String> → serialized as string | null
+  return invoke('get_ai_token');
+}
+
+export async function deleteAiToken(): Promise<void> {
+  return invoke('delete_ai_token');
+}
