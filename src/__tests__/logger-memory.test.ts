@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { MemoryLogger } from '../services/logger/MemoryLogger';
 import { NoopLogger } from '../services/logger/NoopLogger';
 
@@ -51,5 +51,27 @@ describe('NoopLogger', () => {
     const log = new NoopLogger();
     expect(() => log.error('x')).not.toThrow();
     expect(log.child({ a: 1 })).toBeInstanceOf(NoopLogger);
+  });
+});
+
+describe('MemoryLogger error containment (M-1)', () => {
+  // Regression: a property accessor that throws used to crash callers because
+  // `redactCtx` walks ctx synchronously. Logging must never throw.
+  it('does not throw if ctx contains a property accessor that throws', () => {
+    MemoryLogger.resetForTests();
+    const log = new MemoryLogger('root');
+    const hostile: Record<string, unknown> = {};
+    Object.defineProperty(hostile, 'boom', {
+      enumerable: true,
+      get() {
+        throw new Error('property accessor failure');
+      },
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(() => log.info('hostile', hostile)).not.toThrow();
+    // The hostile call should be dropped silently after the first console.warn.
+    expect(warnSpy).toHaveBeenCalled();
+    expect(log.records).toHaveLength(0);
+    warnSpy.mockRestore();
   });
 });

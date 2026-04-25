@@ -77,4 +77,23 @@ describe('IpcLogger', () => {
       .records[0];
     expect(r.ctx.uri).toBe('mongodb://u:***@h/d');
   });
+
+  // Regression for review M-1: logging must never throw at the call site,
+  // even if ctx contains a hostile property that throws on access.
+  it('does not throw when ctx serialization fails (M-1)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const hostile: Record<string, unknown> = {};
+    Object.defineProperty(hostile, 'boom', {
+      enumerable: true,
+      get() {
+        throw new Error('property accessor failure');
+      },
+    });
+    expect(() => logger.info('hostile', hostile)).not.toThrow();
+    // Buffer is empty (record was dropped) so no IPC call is made.
+    vi.advanceTimersByTime(100);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
 });

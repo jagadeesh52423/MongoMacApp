@@ -25,6 +25,7 @@ export class IpcLogger implements Logger {
   private static buffer: LogRecord[] = [];
   private static timer: ReturnType<typeof setTimeout> | null = null;
   private static warned = false;
+  private static emitWarned = false;
 
   /** Test-only helper. Clears module-level static state between test cases. */
   public static resetForTests(): void {
@@ -34,6 +35,7 @@ export class IpcLogger implements Logger {
     }
     IpcLogger.buffer = [];
     IpcLogger.warned = false;
+    IpcLogger.emitWarned = false;
   }
 
   constructor(
@@ -45,20 +47,34 @@ export class IpcLogger implements Logger {
 
   private emit(level: LogLevel, msg: string, ctx: LogCtx = {}): void {
     if (!levelEnabled(level, this.threshold)) return;
-    const merged = redactCtx({ ...this.bindings, ...ctx });
-    const record: LogRecord = {
-      ts: Date.now(),
-      level,
-      logger: this.name,
-      runId: typeof merged.runId === 'string' ? merged.runId : undefined,
-      msg,
-      ctx: merged,
-    };
-    IpcLogger.buffer.push(record);
-    if (IpcLogger.buffer.length >= FLUSH_THRESHOLD) {
-      this.flush();
-    } else if (IpcLogger.timer === null) {
-      IpcLogger.timer = setTimeout(() => this.flush(), FLUSH_INTERVAL_MS);
+    // Logging must NEVER throw at the call site (review M-1). If ctx contains
+    // a hostile property accessor, a circular ref, or a BigInt that breaks the
+    // downstream IPC serializer, drop the record silently after one warning.
+    try {
+      const merged = redactCtx({ ...this.bindings, ...ctx });
+      const record: LogRecord = {
+        ts: Date.now(),
+        level,
+        logger: this.name,
+        runId: typeof merged.runId === 'string' ? merged.runId : undefined,
+        msg,
+        ctx: merged,
+      };
+      IpcLogger.buffer.push(record);
+      if (IpcLogger.buffer.length >= FLUSH_THRESHOLD) {
+        this.flush();
+      } else if (IpcLogger.timer === null) {
+        IpcLogger.timer = setTimeout(() => this.flush(), FLUSH_INTERVAL_MS);
+      }
+    } catch (err) {
+      if (!IpcLogger.emitWarned) {
+        IpcLogger.emitWarned = true;
+        // eslint-disable-next-line no-console
+        console.warn(
+          '[IpcLogger] emit failed; subsequent failing records will be dropped silently.',
+          err,
+        );
+      }
     }
   }
 
