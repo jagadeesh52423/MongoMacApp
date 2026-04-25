@@ -50,4 +50,20 @@ describe('ConsoleLogger', () => {
       expect.objectContaining({ runId: 'r1', extra: 2 }),
     );
   });
+
+  // Verification of team-lead's M-1 note: ConsoleLogger doesn't call
+  // JSON.stringify, but it does call redactCtx({...ctx}) which walks ctx via
+  // Object.entries — a property accessor that throws would propagate out of
+  // emit(). Logging must never throw at the call site. (Review M-1.)
+  it('does not throw if ctx contains a property accessor that throws (M-1)', () => {
+    const log = new ConsoleLogger('root', 'debug');
+    const hostile: Record<string, unknown> = {};
+    Object.defineProperty(hostile, 'boom', {
+      enumerable: true,
+      get() {
+        throw new Error('property accessor failure');
+      },
+    });
+    expect(() => log.info('hostile', hostile)).not.toThrow();
+  });
 });
