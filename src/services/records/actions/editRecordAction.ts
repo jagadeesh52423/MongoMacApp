@@ -16,7 +16,7 @@ recordActionRegistry.register({
   execute(context, host) {
     const { doc, connectionId, database, collection } = context;
     const { _id: _removed, ...docWithoutId } = doc;
-    const originalJson = JSON.stringify(docWithoutId, null, 2);
+    const originalJson = JSON.stringify(doc, null, 2);
     const idStr = String(doc._id ?? '');
 
     function EditBody() {

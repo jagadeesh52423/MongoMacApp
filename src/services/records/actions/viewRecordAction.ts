@@ -10,8 +10,7 @@ recordActionRegistry.register({
   canExecute: () => true,
   execute(context, host) {
     const { doc } = context;
-    const { _id: _removed, ...docWithoutId } = doc;
-    const json = JSON.stringify(docWithoutId, null, 2);
+    const json = JSON.stringify(doc, null, 2);
     const idStr = String(doc._id ?? '');
 
     const body = createElement('pre', {
