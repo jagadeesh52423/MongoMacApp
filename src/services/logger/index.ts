@@ -9,7 +9,7 @@
 // To add a new adapter: implement Logger, export it from here, and add a
 // branch to `createLogger` keyed on env/capability. Nothing else changes.
 
-import { createContext, createElement, useContext, type ReactNode } from 'react';
+import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
 import type { Logger, LogLevel } from './types';
 import { NoopLogger } from './NoopLogger';
 import { ConsoleLogger } from './ConsoleLogger';
@@ -42,10 +42,14 @@ export function LoggerProvider({ value, children }: { value: Logger; children: R
 
 /**
  * Returns a child logger bound to `name` (added as ctx.logger).
- * Callers do NOT need to memoize — child() is cheap and the returned logger
- * is used only for writes.
+ *
+ * The result is memoized on `(root, name)` so the reference is stable across
+ * renders. This matters because callers commonly include the logger in
+ * `useEffect` / `useCallback` dependency arrays — without memoization, a
+ * fresh child every render would re-run effects (e.g., re-subscribing to
+ * Tauri events in `useScriptEvents`). See review finding B-2.
  */
 export function useLogger(name: string): Logger {
   const root = useContext(LoggerContext);
-  return root.child({ logger: name });
+  return useMemo(() => root.child({ logger: name }), [root, name]);
 }

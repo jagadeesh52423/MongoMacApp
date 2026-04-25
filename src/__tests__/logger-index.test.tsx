@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, act } from '@testing-library/react';
 import { LoggerProvider, useLogger, createLogger } from '../services/logger';
 import { NoopLogger } from '../services/logger/NoopLogger';
 import { MemoryLogger } from '../services/logger/MemoryLogger';
@@ -48,5 +49,31 @@ describe('useLogger', () => {
     }
     render(<Probe />);
     expect(() => captured!.info('no-op')).not.toThrow();
+  });
+
+  it('returns a stable reference across renders (memoized on root + name)', () => {
+    // Regression for review B-2: a fresh child per render makes useLogger
+    // unsafe to put in effect dep arrays — every render re-runs the effect.
+    const root = new MemoryLogger('root');
+    const seen: ReturnType<typeof useLogger>[] = [];
+    let bumpCounter: () => void = () => {};
+    function Probe() {
+      const [, setN] = useState(0);
+      bumpCounter = () => setN((n) => n + 1);
+      seen.push(useLogger('components.Stable'));
+      return null;
+    }
+    render(
+      <LoggerProvider value={root}>
+        <Probe />
+      </LoggerProvider>,
+    );
+    act(() => bumpCounter());
+    act(() => bumpCounter());
+    expect(seen.length).toBeGreaterThanOrEqual(3);
+    // All references should be identical — memoized on (root, name).
+    for (let i = 1; i < seen.length; i++) {
+      expect(seen[i]).toBe(seen[0]);
+    }
   });
 });
