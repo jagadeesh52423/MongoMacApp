@@ -1,5 +1,4 @@
 use crate::logctx;
-use crate::logger::Logger as _;
 use crate::mongo;
 use crate::state::AppState;
 use futures_util::TryStreamExt;

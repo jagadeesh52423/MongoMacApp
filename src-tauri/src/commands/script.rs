@@ -1,7 +1,6 @@
 use crate::db;
 use crate::keychain;
 use crate::logctx;
-use crate::logger::Logger as _;
 use crate::mongo;
 use crate::runner::executor::spawn_script;
 use crate::state::AppState;

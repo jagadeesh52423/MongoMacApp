@@ -6,8 +6,6 @@ use std::sync::{Arc, Mutex};
 
 use crate::logger::tracing_impl::TracingLogger;
 use crate::logger::Logger;
-#[cfg(test)]
-use crate::logger::MemoryLogger;
 
 pub struct AppState {
     pub db_path: PathBuf,
@@ -37,18 +35,5 @@ impl AppState {
 
     pub fn open_db(&self) -> rusqlite::Result<rusqlite::Connection> {
         crate::db::open(&self.db_path)
-    }
-
-    #[cfg(test)]
-    pub fn for_tests(db_path: PathBuf) -> Self {
-        let memory: Arc<dyn Logger> = MemoryLogger::new("test");
-        Self {
-            db_path,
-            logs_dir: std::env::temp_dir(),
-            mongo_clients: Mutex::new(HashMap::new()),
-            active_scripts: Mutex::new(HashMap::new()),
-            logger: memory,
-            tracing_logger: None,
-        }
     }
 }

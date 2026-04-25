@@ -1,5 +1,4 @@
 use crate::logctx;
-use crate::logger::Logger as _;
 use crate::mongo;
 use crate::state::AppState;
 use mongodb::bson::{doc, oid::ObjectId, Document};

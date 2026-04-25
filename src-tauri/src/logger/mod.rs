@@ -5,7 +5,9 @@ pub mod tracing_impl;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+#[cfg(test)]
+use std::sync::Mutex;
 
 pub type LogCtx = BTreeMap<String, Value>;
 
@@ -98,10 +100,12 @@ macro_rules! logctx {
 
 // --- MemoryLogger for tests ---------------------------------------------------
 
+#[cfg(test)]
 pub struct MemoryLoggerInner {
     pub records: Mutex<Vec<LogRecord>>,
 }
 
+#[cfg(test)]
 pub struct MemoryLogger {
     name: String,
     threshold: Level,
@@ -110,6 +114,7 @@ pub struct MemoryLogger {
     inner: Arc<MemoryLoggerInner>,
 }
 
+#[cfg(test)]
 impl MemoryLogger {
     pub fn new(name: &str) -> Arc<Self> {
         Arc::new(Self {
@@ -126,6 +131,7 @@ impl MemoryLogger {
     }
 }
 
+#[cfg(test)]
 impl Logger for MemoryLogger {
     fn log(&self, record: LogRecord) {
         self.inner.records.lock().unwrap().push(record);
@@ -150,7 +156,6 @@ impl Logger for MemoryLogger {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::logctx;
 
     #[test]
     fn memory_logger_records_levels() {

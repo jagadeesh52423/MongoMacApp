@@ -1,6 +1,5 @@
 use crate::keychain;
 use crate::logctx;
-use crate::logger::Logger as _;
 use crate::state::AppState;
 use tauri::State;
 

@@ -1,6 +1,6 @@
 use crate::logctx;
 use crate::logger::tracing_impl::TracingLogger;
-use crate::logger::{Layer, Level, LogCtx, LogRecord, Logger as _};
+use crate::logger::{Layer, Level, LogCtx, LogRecord};
 use crate::state::AppState;
 use serde::Deserialize;
 use std::sync::Arc;

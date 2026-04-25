@@ -1,6 +1,6 @@
 use super::{redact, Layer, Level, LogCtx, LogRecord, Logger};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 
@@ -61,12 +61,6 @@ impl TracingLogger {
         if let Ok(line) = serde_json::to_string(&sanitised) {
             self.writers.write_frontend(&line);
         }
-    }
-
-    pub fn logs_dir(&self) -> PathBuf {
-        // We don't retain the path on the struct; callers that need it should pass
-        // it from main.rs. Added only for future use.
-        PathBuf::new()
     }
 }
 
