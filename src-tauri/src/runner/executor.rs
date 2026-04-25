@@ -59,12 +59,40 @@ pub fn check_runner() -> RunnerStatus {
     }
 }
 
-pub fn install_runner(bundled_harness: &str) -> Result<(), String> {
-    let dir = runner_dir();
-    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    fs::write(harness_path(), bundled_harness).map_err(|e| e.to_string())?;
+/// Write the harness and its sibling runtime modules to `dir`, plus a fresh
+/// `package.json` describing the runner's npm deps. Pure file-system work so
+/// it can be unit-tested against a tempdir without invoking npm.
+///
+/// Bundles every JS file the harness `require`s at runtime:
+///   - `harness.js`  — entry point launched by `spawn_script`
+///   - `logger.js`   — required by harness.js
+///   - `redact.js`   — required by logger.js
+///
+/// To add a new runtime sibling: drop it as a new `&str` arg, write it
+/// alongside the existing files, and pass the corresponding `include_str!`
+/// from `install_node_runner`. No other code changes needed.
+fn write_runner_files(
+    dir: &std::path::Path,
+    harness: &str,
+    logger_js: &str,
+    redact_js: &str,
+) -> Result<(), String> {
+    fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    fs::write(dir.join("harness.js"), harness).map_err(|e| e.to_string())?;
+    fs::write(dir.join("logger.js"), logger_js).map_err(|e| e.to_string())?;
+    fs::write(dir.join("redact.js"), redact_js).map_err(|e| e.to_string())?;
     let pkg = r#"{"name":"mongomacapp-runner","version":"1.0.0","dependencies":{"mongodb":"^6.8.0"}}"#;
     fs::write(dir.join("package.json"), pkg).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+pub fn install_runner(
+    bundled_harness: &str,
+    bundled_logger: &str,
+    bundled_redact: &str,
+) -> Result<(), String> {
+    let dir = runner_dir();
+    write_runner_files(&dir, bundled_harness, bundled_logger, bundled_redact)?;
     // Resolve npm next to node binary
     let node = resolve_node().ok_or("Node.js not found")?;
     let npm = PathBuf::from(node).parent().unwrap().join("npm");
@@ -130,5 +158,37 @@ pub fn check_node_runner() -> RunnerStatus {
 #[tauri::command]
 pub fn install_node_runner() -> Result<(), String> {
     const HARNESS: &str = include_str!("../../../runner/harness.js");
-    install_runner(HARNESS)
+    const LOGGER_JS: &str = include_str!("../../../runner/logger.js");
+    const REDACT_JS: &str = include_str!("../../../runner/redact.js");
+    install_runner(HARNESS, LOGGER_JS, REDACT_JS)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn write_runner_files_creates_required_runtime_files() {
+        // Regression test for B-1: a clean install must produce every JS file
+        // the harness requires at runtime, not just harness.js.
+        let d = tempdir().unwrap();
+        write_runner_files(d.path(), "/* harness */", "/* logger */", "/* redact */")
+            .unwrap();
+        for required in ["harness.js", "logger.js", "redact.js", "package.json"] {
+            assert!(
+                d.path().join(required).is_file(),
+                "expected {required} to be written into runner dir"
+            );
+        }
+    }
+
+    #[test]
+    fn write_runner_files_writes_exact_content() {
+        let d = tempdir().unwrap();
+        write_runner_files(d.path(), "H", "L", "R").unwrap();
+        assert_eq!(fs::read_to_string(d.path().join("harness.js")).unwrap(), "H");
+        assert_eq!(fs::read_to_string(d.path().join("logger.js")).unwrap(), "L");
+        assert_eq!(fs::read_to_string(d.path().join("redact.js")).unwrap(), "R");
+    }
 }
